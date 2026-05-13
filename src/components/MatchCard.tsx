@@ -56,8 +56,8 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
             <input 
               type="number" 
               min="0"
-              value={localScoreA}
-              onChange={(e) => setLocalScoreA(e.target.value)}
+              value={prediction?.score_a ?? ""}
+              onChange={(e) => handleScoreChange(parseInt(e.target.value) || 0, prediction?.score_b ?? 0)}
               disabled={isExpired || saving}
               className="w-14 h-14 bg-white/10 border border-white/10 rounded-2xl text-center text-xl font-black text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
               placeholder="0"
@@ -66,8 +66,8 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
             <input 
               type="number"
               min="0"
-              value={localScoreB}
-              onChange={(e) => setLocalScoreB(e.target.value)}
+              value={prediction?.score_b ?? ""}
+              onChange={(e) => handleScoreChange(prediction?.score_a ?? 0, parseInt(e.target.value) || 0)}
               disabled={isExpired || saving}
               className="w-14 h-14 bg-white/10 border border-white/10 rounded-2xl text-center text-xl font-black text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
               placeholder="0"
