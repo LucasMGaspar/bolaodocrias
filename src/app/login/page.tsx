@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [nickname, setNickname] = useState("")
   const [isSignUp, setIsSignUp] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
@@ -21,12 +22,15 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
+        if (!nickname.trim()) throw new Error("Escolha um Nick para o Bolão!")
+        
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              full_name: email.split('@')[0],
+              full_name: nickname,
+              username: nickname,
             }
           }
         })
@@ -73,7 +77,23 @@ export default function LoginPage() {
             </div>
           )}
 
-          <div className="space-y-4">
+            {isSignUp && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Seu Nick (Apelido)</label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground flex items-center justify-center font-bold text-xs">@</div>
+                  <input 
+                    type="text"
+                    required
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    placeholder="Ex: NeymarDosCria"
+                    className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">E-mail</label>
               <div className="relative">
