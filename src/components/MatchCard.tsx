@@ -20,13 +20,17 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
   const [localA, setLocalA] = useState(prediction?.score_a?.toString() ?? "")
   const [localB, setLocalB] = useState(prediction?.score_b?.toString() ?? "")
 
-  // Sincroniza o estado local quando os dados chegam do banco
+  // Sincroniza apenas se o valor no banco mudar e for diferente do local
   useEffect(() => {
     if (prediction) {
-      setLocalA(prediction.score_a?.toString() ?? "")
-      setLocalB(prediction.score_b?.toString() ?? "")
+      const scoreA = prediction.score_a?.toString() ?? ""
+      const scoreB = prediction.score_b?.toString() ?? ""
+      if (!saving) {
+        setLocalA(scoreA)
+        setLocalB(scoreB)
+      }
     }
-  }, [prediction])
+  }, [prediction, saving])
 
   const handleScoreChange = async (valA: string, valB: string) => {
     setLocalA(valA)
@@ -72,7 +76,7 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
                 value={localA}
                 onChange={(e) => setLocalA(e.target.value)}
                 disabled={isExpired || saving}
-                className="w-14 h-14 bg-white/10 border border-white/20 rounded-2xl text-center text-xl font-black text-white !text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
+                className="w-14 h-14 bg-white/20 border border-white/30 rounded-2xl text-center text-xl font-black text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
                 placeholder="0"
               />
               <span className="text-muted-foreground font-black italic text-xs">X</span>
@@ -82,7 +86,7 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
                 value={localB}
                 onChange={(e) => setLocalB(e.target.value)}
                 disabled={isExpired || saving}
-                className="w-14 h-14 bg-white/10 border border-white/20 rounded-2xl text-center text-xl font-black text-white !text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
+                className="w-14 h-14 bg-white/20 border border-white/30 rounded-2xl text-center text-xl font-black text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
                 placeholder="0"
               />
             </div>
