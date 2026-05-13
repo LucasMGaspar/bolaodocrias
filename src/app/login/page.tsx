@@ -77,6 +77,7 @@ export default function LoginPage() {
             </div>
           )}
 
+          <div className="space-y-4">
             {isSignUp && (
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Seu Nick (Apelido)</label>
