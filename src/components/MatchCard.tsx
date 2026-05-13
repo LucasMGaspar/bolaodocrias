@@ -52,23 +52,27 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
             </div>
           )}
-          <input 
-            type="number"
-            disabled={isExpired || saving}
-            value={prediction?.score_a ?? ""}
-            onChange={(e) => handleScoreChange(parseInt(e.target.value) || 0, prediction?.score_b ?? 0)}
-            className="w-12 h-14 bg-white/5 border border-white/10 rounded-2xl text-center text-xl font-black focus:ring-2 focus:ring-primary outline-none disabled:opacity-50"
-            placeholder="0"
-          />
-          <span className="text-muted-foreground font-black italic">X</span>
-          <input 
-            type="number"
-            disabled={isExpired || saving}
-            value={prediction?.score_b ?? ""}
-            onChange={(e) => handleScoreChange(prediction?.score_a ?? 0, parseInt(e.target.value) || 0)}
-            className="w-12 h-14 bg-white/5 border border-white/10 rounded-2xl text-center text-xl font-black focus:ring-2 focus:ring-primary outline-none disabled:opacity-50"
-            placeholder="0"
-          />
+          <div className="flex items-center gap-3">
+            <input 
+              type="number" 
+              min="0"
+              value={localScoreA}
+              onChange={(e) => setLocalScoreA(e.target.value)}
+              disabled={isExpired || saving}
+              className="w-14 h-14 bg-white/10 border border-white/10 rounded-2xl text-center text-xl font-black text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
+              placeholder="0"
+            />
+            <span className="text-muted-foreground font-black italic text-xs">X</span>
+            <input 
+              type="number"
+              min="0"
+              value={localScoreB}
+              onChange={(e) => setLocalScoreB(e.target.value)}
+              disabled={isExpired || saving}
+              className="w-14 h-14 bg-white/10 border border-white/10 rounded-2xl text-center text-xl font-black text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
+              placeholder="0"
+            />
+          </div>
         </div>
 
         <div className="flex flex-col items-center gap-2 flex-1 text-center">
