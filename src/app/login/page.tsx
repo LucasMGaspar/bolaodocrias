@@ -31,7 +31,8 @@ export default function LoginPage() {
           }
         })
         if (error) throw error
-        alert("Verifique seu e-mail para confirmar o cadastro!")
+        router.push("/")
+        router.refresh()
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
