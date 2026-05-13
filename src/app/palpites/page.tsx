@@ -50,9 +50,27 @@ export default function PalpitesPage() {
 
   const handlePredict = async (matchId: number, scoreA: number, scoreB: number) => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { error } = await supabase.from('predictions').upsert({ user_id: user.id, match_id: matchId, score_a: scoreA, score_b: scoreB, updated_at: new Date().toISOString() })
-    if (!error) setPredictions(prev => ({ ...prev, [matchId]: { match_id: matchId, score_a: scoreA, score_b: scoreB } }))
+    if (!user) {
+      alert("Você precisa estar logado!")
+      return
+    }
+    
+    console.log("Tentando salvar palpite:", { matchId, scoreA, scoreB, userId: user.id })
+    
+    const { error } = await supabase.from('predictions').upsert({ 
+      user_id: user.id, 
+      match_id: matchId, 
+      score_a: scoreA, 
+      score_b: scoreB, 
+      updated_at: new Date().toISOString() 
+    })
+    
+    if (error) {
+      console.error("Erro ao salvar palpite:", error)
+      alert("Erro ao salvar: " + error.message)
+    } else {
+      setPredictions(prev => ({ ...prev, [matchId]: { match_id: matchId, score_a: scoreA, score_b: scoreB } }))
+    }
   }
 
   const scroll = (direction: 'left' | 'right') => {
