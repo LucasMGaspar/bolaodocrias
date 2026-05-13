@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { Calendar, Lock, Loader2, Users } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { cn } from "@/lib/utils"
 
 interface MatchCardProps {
   match: any
@@ -154,7 +155,14 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
                     <span className="text-[10px] font-bold truncate max-w-[100px]">{op.profiles?.full_name || 'Amigo'}</span>
                   </div>
                   <div className="text-xs font-black text-primary">
-                    {op.score_a} x {op.score_b}
+                    {isExpired ? (
+                      `${op.guess_a ?? op.score_a} x ${op.guess_b ?? op.score_b}`
+                    ) : (
+                      <div className="flex items-center gap-1 opacity-40" title="Palpites ocultos até o início">
+                        <Lock className="h-2.5 w-2.5" />
+                        <span className="text-[10px]">?? x ??</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )) : (
