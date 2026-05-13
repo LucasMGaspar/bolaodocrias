@@ -12,6 +12,7 @@ interface League {
   name: string
   invite_code: string
   member_count: number
+  image_url?: string
 }
 
 export default function LeaguesPage() {
@@ -20,6 +21,7 @@ export default function LeaguesPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(false)
   const [newLeagueName, setNewLeagueName] = useState("")
+  const [newLeagueImage, setNewLeagueImage] = useState("")
   const [joinCode, setJoinCode] = useState("")
   const [availableLeagues, setAvailableLeagues] = useState<string[]>([])
   const [selectedLeaguesForNew, setSelectedLeaguesForNew] = useState<string[]>([])
@@ -47,7 +49,8 @@ export default function LeaguesPage() {
         leagues (
           id,
           name,
-          invite_code
+          invite_code,
+          image_url
         )
       `)
       .eq('user_id', user.id)
@@ -78,6 +81,7 @@ export default function LeaguesPage() {
           name: newLeagueName,
           invite_code: inviteCode,
           owner_id: user.id,
+          image_url: newLeagueImage,
           settings: { leagues: selectedLeaguesForNew }
         })
         .select()
@@ -93,6 +97,7 @@ export default function LeaguesPage() {
         fetchLeagues()
         setShowCreate(false)
         setNewLeagueName("")
+        setNewLeagueImage("")
         setSelectedLeaguesForNew([])
       }
     } catch (err: any) {
@@ -170,8 +175,12 @@ export default function LeaguesPage() {
               whileTap={{ scale: 0.98 }}
               className="glass p-4 rounded-2xl flex items-center gap-4 border-l-4 border-l-primary"
             >
-              <div className="h-12 w-12 bg-white/5 rounded-xl flex items-center justify-center text-primary">
-                <Trophy className="h-6 w-6" />
+              <div className="h-12 w-12 bg-white/5 rounded-xl flex items-center justify-center text-primary overflow-hidden border border-white/10">
+                {league.image_url ? (
+                  <img src={league.image_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <Trophy className="h-6 w-6" />
+                )}
               </div>
               <div className="flex-1">
                 <h3 className="font-bold">{league.name}</h3>
@@ -206,6 +215,16 @@ export default function LeaguesPage() {
                 onChange={(e) => setNewLeagueName(e.target.value)} 
                 className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 focus:outline-none focus:ring-2 focus:ring-primary" 
                 placeholder="Ex: Liga dos Cria" 
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Imagem da Liga (URL)</label>
+              <input 
+                value={newLeagueImage} 
+                onChange={(e) => setNewLeagueImage(e.target.value)} 
+                className="w-full h-12 bg-white/5 border border-white/10 rounded-xl px-4 focus:outline-none focus:ring-2 focus:ring-primary" 
+                placeholder="https://exemplo.com/foto.png" 
               />
             </div>
 

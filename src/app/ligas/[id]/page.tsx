@@ -12,6 +12,7 @@ interface Member {
   total_score: number
   profiles: {
     full_name: string
+    username: string
     avatar_url: string
   }
 }
@@ -24,6 +25,7 @@ interface Message {
   is_system?: boolean
   profiles: {
     full_name: string
+    username: string
     avatar_url: string
   }
 }
@@ -152,8 +154,12 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
   return (
     <div className="flex flex-col h-[calc(100vh-100px)]">
       <header className="flex flex-col items-center gap-4 mb-6 shrink-0">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20 text-primary shadow-xl shadow-primary/10">
-          <Trophy className="h-8 w-8" />
+        <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/20 text-primary shadow-xl shadow-primary/10 overflow-hidden border-2 border-primary/20">
+          {league?.image_url ? (
+            <img src={league.image_url} alt={league.name} className="h-full w-full object-cover" />
+          ) : (
+            <Trophy className="h-8 w-8" />
+          )}
         </div>
         <div className="text-center">
           <h1 className="text-2xl font-black">{league?.name || 'Liga'}</h1>
