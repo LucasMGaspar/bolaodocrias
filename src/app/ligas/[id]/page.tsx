@@ -88,7 +88,7 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
     const { data: leagueData } = await supabase.from('leagues').select('*').eq('id', params.id).single()
     setLeague(leagueData)
 
-    const { data: membersData } = await supabase.from('league_members').select(`user_id, total_score, profiles(full_name, avatar_url)`).eq('league_id', params.id).order('total_score', { ascending: false })
+    const { data: membersData } = await supabase.from('league_members').select(`user_id, total_score, profiles(full_name, username, avatar_url)`).eq('league_id', params.id).order('total_score', { ascending: false })
     if (membersData) setMembers(membersData as any)
 
     if (leagueData) {
@@ -99,7 +99,7 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
       if (matchesData) {
         setMatches(matchesData)
         const memberIds = membersData?.map(m => m.user_id) || []
-        const { data: predData } = await supabase.from('predictions').select('*, profiles(full_name, avatar_url)').in('match_id', matchesData.map(m => m.id)).in('user_id', memberIds)
+        const { data: predData } = await supabase.from('predictions').select('*, profiles(full_name, username, avatar_url)').in('match_id', matchesData.map(m => m.id)).in('user_id', memberIds)
         if (predData) {
           setAllPredictions(predData)
           if (user) {
@@ -113,7 +113,7 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
       }
 
       // Fetch Chat Messages
-      const { data: chatData } = await supabase.from('league_messages').select('*, profiles(full_name, avatar_url)').eq('league_id', params.id).order('created_at', { ascending: true }).limit(50)
+      const { data: chatData } = await supabase.from('league_messages').select('*, profiles(full_name, username, avatar_url)').eq('league_id', params.id).order('created_at', { ascending: true }).limit(50)
       if (chatData) setMessages(chatData)
     }
     setLoading(false)
@@ -193,7 +193,7 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
                   <div className="h-10 w-10 overflow-hidden rounded-full border border-white/10 bg-white/5">
                     <img src={member.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${member.user_id}`} alt="" />
                   </div>
-                  <div className="flex-1 min-w-0"><p className="font-bold truncate text-sm">{member.profiles?.full_name || 'Craque'}</p></div>
+                  <div className="flex-1 min-w-0"><p className="font-bold truncate text-sm">{member.profiles?.username || member.profiles?.full_name || 'Craque'}</p></div>
                   <div className="text-right"><p className="text-lg font-black text-primary">{member.total_score}</p><p className="text-[8px] uppercase text-muted-foreground font-bold">Pts</p></div>
                 </div>
               ))}
@@ -227,7 +227,7 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
                   return (
                     <div key={msg.id} className={cn("flex flex-col", msg.user_id === currentUserId ? "items-end" : "items-start")}>
                       <div className="flex items-center gap-2 mb-1">
-                        {msg.user_id !== currentUserId && <span className="text-[9px] font-black uppercase text-muted-foreground">{msg.profiles?.full_name}</span>}
+                        {msg.user_id !== currentUserId && <span className="text-[9px] font-black uppercase text-muted-foreground">{msg.profiles?.username || msg.profiles?.full_name}</span>}
                         <span className="text-[8px] text-muted-foreground">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                       <div className={cn("max-w-[80%] p-3 px-4 rounded-2xl text-sm font-medium", msg.user_id === currentUserId ? "bg-primary text-white rounded-tr-none shadow-lg shadow-primary/20" : "bg-white/5 border border-white/10 rounded-tl-none")}>
