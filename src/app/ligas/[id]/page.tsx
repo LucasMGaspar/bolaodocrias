@@ -104,7 +104,9 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
           setAllPredictions(predData)
           if (user) {
             const myPredMap: Record<number, any> = {}
-            predData.filter(p => p.user_id === user.id).forEach(p => { myPredMap[p.match_id] = p })
+            predData.filter(p => p.user_id === user.id).forEach(p => { 
+              myPredMap[p.match_id] = { ...p, score_a: p.guess_a, score_b: p.guess_b } 
+            })
             setPredictions(myPredMap)
           }
         }
@@ -132,7 +134,13 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
   const handlePredict = async (matchId: number, scoreA: number, scoreB: number) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { error } = await supabase.from('predictions').upsert({ user_id: user.id, match_id: matchId, score_a: scoreA, score_b: scoreB, updated_at: new Date().toISOString() })
+    const { error } = await supabase.from('predictions').upsert({ 
+      user_id: user.id, 
+      match_id: matchId, 
+      guess_a: scoreA, 
+      guess_b: scoreB, 
+      updated_at: new Date().toISOString() 
+    })
     if (!error) {
       setPredictions(prev => ({ ...prev, [matchId]: { match_id: matchId, score_a: scoreA, score_b: scoreB } }))
       fetchInitialData()
