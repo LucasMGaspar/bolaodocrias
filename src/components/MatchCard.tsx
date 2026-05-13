@@ -17,10 +17,19 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
   const [showOthers, setShowOthers] = useState(false)
   const isExpired = new Date(match.match_time) < new Date()
 
-  const handleScoreChange = async (scoreA: number, scoreB: number) => {
-    setSaving(true)
-    await onPredict(match.id, scoreA, scoreB)
-    setSaving(false)
+  const [localA, setLocalA] = useState(prediction?.score_a?.toString() ?? "")
+  const [localB, setLocalB] = useState(prediction?.score_b?.toString() ?? "")
+
+  const handleScoreChange = async (valA: string, valB: string) => {
+    setLocalA(valA)
+    setLocalB(valB)
+    
+    // Só salva se ambos os campos tiverem valor
+    if (valA !== "" && valB !== "") {
+      setSaving(true)
+      await onPredict(match.id, parseInt(valA), parseInt(valB))
+      setSaving(false)
+    }
   }
 
   return (
@@ -56,20 +65,20 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
             <input 
               type="number" 
               min="0"
-              value={prediction?.score_a ?? ""}
-              onChange={(e) => handleScoreChange(parseInt(e.target.value) || 0, prediction?.score_b ?? 0)}
+              value={localA}
+              onChange={(e) => handleScoreChange(e.target.value, localB)}
               disabled={isExpired || saving}
-              className="w-14 h-14 bg-white/10 border border-white/10 rounded-2xl text-center text-xl font-black text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
+              className="w-14 h-14 bg-white/10 border border-white/20 rounded-2xl text-center text-xl font-black text-white !text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
               placeholder="0"
             />
             <span className="text-muted-foreground font-black italic text-xs">X</span>
             <input 
               type="number"
               min="0"
-              value={prediction?.score_b ?? ""}
-              onChange={(e) => handleScoreChange(prediction?.score_a ?? 0, parseInt(e.target.value) || 0)}
+              value={localB}
+              onChange={(e) => handleScoreChange(localA, e.target.value)}
               disabled={isExpired || saving}
-              className="w-14 h-14 bg-white/10 border border-white/10 rounded-2xl text-center text-xl font-black text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
+              className="w-14 h-14 bg-white/10 border border-white/20 rounded-2xl text-center text-xl font-black text-white !text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
               placeholder="0"
             />
           </div>
