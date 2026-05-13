@@ -42,7 +42,9 @@ export default function PalpitesPage() {
     if (matchesData) setMatches(matchesData)
     if (predictionsData) {
       const predMap: Record<number, any> = {}
-      predictionsData.forEach(p => { predMap[p.match_id] = p })
+      predictionsData.forEach(p => { 
+        predMap[p.match_id] = { ...p, score_a: p.guess_a, score_b: p.guess_b } 
+      })
       setPredictions(predMap)
     }
     setLoading(false)
@@ -60,8 +62,8 @@ export default function PalpitesPage() {
     const { error } = await supabase.from('predictions').upsert({ 
       user_id: user.id, 
       match_id: matchId, 
-      score_a: scoreA, 
-      score_b: scoreB, 
+      guess_a: scoreA, 
+      guess_b: scoreB, 
       updated_at: new Date().toISOString() 
     })
     
