@@ -55,33 +55,40 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
           <span className="text-[10px] font-black uppercase truncate w-full">{match.team_a}</span>
         </div>
 
-        <div className="flex items-center gap-2 relative">
-          {saving && (
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center gap-2 relative">
+            <div className="flex items-center gap-3">
+              <input 
+                type="number" 
+                min="0"
+                value={localA}
+                onChange={(e) => setLocalA(e.target.value)}
+                disabled={isExpired || saving}
+                className="w-14 h-14 bg-white/10 border border-white/20 rounded-2xl text-center text-xl font-black text-white !text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
+                placeholder="0"
+              />
+              <span className="text-muted-foreground font-black italic text-xs">X</span>
+              <input 
+                type="number"
+                min="0"
+                value={localB}
+                onChange={(e) => setLocalB(e.target.value)}
+                disabled={isExpired || saving}
+                className="w-14 h-14 bg-white/10 border border-white/20 rounded-2xl text-center text-xl font-black text-white !text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
+                placeholder="0"
+              />
             </div>
-          )}
-          <div className="flex items-center gap-3">
-            <input 
-              type="number" 
-              min="0"
-              value={localA}
-              onChange={(e) => handleScoreChange(e.target.value, localB)}
-              disabled={isExpired || saving}
-              className="w-14 h-14 bg-white/10 border border-white/20 rounded-2xl text-center text-xl font-black text-white !text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
-              placeholder="0"
-            />
-            <span className="text-muted-foreground font-black italic text-xs">X</span>
-            <input 
-              type="number"
-              min="0"
-              value={localB}
-              onChange={(e) => handleScoreChange(localA, e.target.value)}
-              disabled={isExpired || saving}
-              className="w-14 h-14 bg-white/10 border border-white/20 rounded-2xl text-center text-xl font-black text-white !text-white focus:outline-none focus:ring-2 focus:ring-primary transition-all disabled:opacity-50"
-              placeholder="0"
-            />
           </div>
+
+          {!isExpired && (localA !== "" || localB !== "") && (
+            <button
+              onClick={() => handleScoreChange(localA, localB)}
+              disabled={saving || localA === "" || localB === ""}
+              className="px-6 py-2 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase rounded-xl transition-all shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center gap-2"
+            >
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Salvar Palpite'}
+            </button>
+          )}
         </div>
 
         <div className="flex flex-col items-center gap-2 flex-1 text-center">
