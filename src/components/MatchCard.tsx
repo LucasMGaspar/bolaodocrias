@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { Calendar, Lock, Loader2, Users } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -19,6 +19,14 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
 
   const [localA, setLocalA] = useState(prediction?.score_a?.toString() ?? "")
   const [localB, setLocalB] = useState(prediction?.score_b?.toString() ?? "")
+
+  // Sincroniza o estado local quando os dados chegam do banco
+  useEffect(() => {
+    if (prediction) {
+      setLocalA(prediction.score_a?.toString() ?? "")
+      setLocalB(prediction.score_b?.toString() ?? "")
+    }
+  }, [prediction])
 
   const handleScoreChange = async (valA: string, valB: string) => {
     setLocalA(valA)
