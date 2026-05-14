@@ -151,7 +151,17 @@ export default function LeaguesPage() {
           <h1 className="text-2xl font-bold">Suas Ligas</h1>
           <p className="text-sm text-muted-foreground">Compita com seus amigos</p>
         </div>
-        <div className="flex gap-2">
+          <button 
+            onClick={async () => {
+              const { data, error } = await supabase.functions.invoke('sync-matches')
+              if (error) alert('Erro ao sincronizar: ' + error.message)
+              else alert('Sincronizado com sucesso! Atualize a página.')
+            }}
+            className="h-10 px-4 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center font-bold text-xs gap-2 text-primary"
+          >
+            <Calendar className="h-4 w-4" />
+            Sincronizar Jogos
+          </button>
           <button 
             onClick={() => setShowJoin(true)}
             className="h-10 px-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center font-bold text-xs gap-2"
@@ -165,7 +175,6 @@ export default function LeaguesPage() {
           >
             <Plus className="h-6 w-6" />
           </button>
-        </div>
       </header>
 
       <div className="grid gap-3">
