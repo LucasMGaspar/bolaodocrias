@@ -64,12 +64,17 @@ serve(async (req) => {
       if (error) throw error
     }
 
-    // Refresh logos: busca IDs dos times com logos do CDN antigo e actualiza
-    const { data: brokenMatches } = await supabase
+    // Refresh logos: busca todos os jogos e filtra os com CDN antigo
+    const { data: allMatches } = await supabase
       .from('matches')
       .select('id, team_a_logo, team_b_logo')
-      .or('team_a_logo.like.%media.api-sports.io%,team_b_logo.like.%media.api-sports.io%')
-      .limit(20)
+
+    const brokenMatches = (allMatches || [])
+      .filter((m: any) =>
+        m.team_a_logo?.includes('media.api-sports.io') ||
+        m.team_b_logo?.includes('media.api-sports.io')
+      )
+      .slice(0, 20)
 
     let logosFixed = 0
 
