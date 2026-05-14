@@ -64,7 +64,8 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col items-center gap-2 flex-1 text-center">
           <div className="h-14 w-14 bg-white/5 rounded-2xl flex items-center justify-center p-2">
-            <img src={match.team_a_logo} alt={match.team_a} className="max-w-full max-h-full object-contain" />
+            <img src={match.team_a_logo} alt={match.team_a} className="max-w-full max-h-full object-contain" onError={(e) => { e.currentTarget.style.display='none'; (e.currentTarget.nextSibling as HTMLElement)?.style.setProperty('display','flex') }} />
+            <span style={{display:'none'}} className="text-lg font-black text-muted-foreground">{match.team_a?.[0]}</span>
           </div>
           <span className="text-[10px] font-black uppercase truncate w-full">{match.team_a}</span>
         </div>
@@ -114,7 +115,8 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
 
         <div className="flex flex-col items-center gap-2 flex-1 text-center">
           <div className="h-14 w-14 bg-white/5 rounded-2xl flex items-center justify-center p-2">
-            <img src={match.team_b_logo} alt={match.team_b} className="max-w-full max-h-full object-contain" />
+            <img src={match.team_b_logo} alt={match.team_b} className="max-w-full max-h-full object-contain" onError={(e) => { e.currentTarget.style.display='none'; (e.currentTarget.nextSibling as HTMLElement)?.style.setProperty('display','flex') }} />
+            <span style={{display:'none'}} className="text-lg font-black text-muted-foreground">{match.team_b?.[0]}</span>
           </div>
           <span className="text-[10px] font-black uppercase truncate w-full">{match.team_b}</span>
         </div>

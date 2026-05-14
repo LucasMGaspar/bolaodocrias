@@ -157,7 +157,10 @@ export default function PalpitesPage() {
 
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex flex-col items-center gap-2 flex-1">
-                      <img src={match.team_a_logo} className="h-10 w-10 object-contain" />
+                      <div className="h-10 w-10 flex items-center justify-center">
+                        <img src={match.team_a_logo} className="h-10 w-10 object-contain" onError={(e) => { e.currentTarget.style.display='none'; (e.currentTarget.nextSibling as HTMLElement)?.style.setProperty('display','flex') }} />
+                        <span style={{display:'none'}} className="text-lg font-black text-muted-foreground">{match.team_a?.[0]}</span>
+                      </div>
                       <span className="text-[10px] font-bold text-center uppercase">{match.team_a}</span>
                     </div>
 
@@ -175,7 +178,10 @@ export default function PalpitesPage() {
                     </div>
 
                     <div className="flex flex-col items-center gap-2 flex-1">
-                      <img src={match.team_b_logo} className="h-10 w-10 object-contain" />
+                      <div className="h-10 w-10 flex items-center justify-center">
+                        <img src={match.team_b_logo} className="h-10 w-10 object-contain" onError={(e) => { e.currentTarget.style.display='none'; (e.currentTarget.nextSibling as HTMLElement)?.style.setProperty('display','flex') }} />
+                        <span style={{display:'none'}} className="text-lg font-black text-muted-foreground">{match.team_b?.[0]}</span>
+                      </div>
                       <span className="text-[10px] font-bold text-center uppercase">{match.team_b}</span>
                     </div>
                   </div>
