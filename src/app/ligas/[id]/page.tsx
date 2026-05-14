@@ -94,12 +94,18 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
     if (membersData) setMembers(membersData as any)
 
     if (leagueData) {
-      // Fetch both finished and upcoming matches
-      const { data: matchesData } = await supabase
+      // Fetch matches and apply league filtering from settings
+      let query = supabase
         .from('matches')
         .select('*')
         .order('match_time', { ascending: false })
-        .limit(40)
+
+      const allowedLeagues = leagueData.settings?.leagues || []
+      if (allowedLeagues.length > 0) {
+        query = query.in('league_name', allowedLeagues)
+      }
+
+      const { data: matchesData } = await query.limit(50)
 
       if (matchesData) {
         setMatches(matchesData)
