@@ -100,15 +100,17 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
         .select('*')
         .order('match_time', { ascending: false })
 
-      const allowedLeagues = leagueData.settings?.leagues || []
-      if (allowedLeagues.length > 0) {
-        query = query.in('league_name', allowedLeagues)
-      }
-
-      const { data: matchesData } = await query.limit(50)
+      const allowedLeagues = (leagueData.settings?.leagues || []) as string[]
+      
+      const { data: matchesData } = await query.limit(100)
 
       if (matchesData) {
-        setMatches(matchesData)
+        // Filter in JS for case-insensitivity and more flexibility
+        const filteredMatches = allowedLeagues.length > 0 
+          ? matchesData.filter(m => allowedLeagues.some(al => al.toLowerCase() === m.league_name?.toLowerCase()))
+          : matchesData
+          
+        setMatches(filteredMatches)
         const memberIds = membersData?.map(m => m.user_id) || []
         const { data: predData } = await supabase
           .from('predictions')

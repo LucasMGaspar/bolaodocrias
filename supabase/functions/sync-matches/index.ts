@@ -69,8 +69,15 @@ function mapStatus(shortStatus: string) {
     case 'NS': return 'pending'
     case '1H':
     case '2H':
-    case 'HT': return 'live'
-    case 'FT': return 'FT'
+    case 'HT':
+    case 'ET': // Extra Time
+    case 'BT': // Break Time
+    case 'P':  // Penalty In Progress
+      return 'live'
+    case 'FT':  // Full Time
+    case 'AET': // After Extra Time
+    case 'PEN': // After Penalties
+      return 'FT'
     default: return 'pending'
   }
 }
