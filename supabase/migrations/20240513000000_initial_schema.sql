@@ -85,7 +85,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     -- Only proceed if status changed to 'FT' (Full Time)
     IF NEW.status = 'FT' AND OLD.status != 'FT' THEN
-        -- Update scores for all users who guessed the exact score
+        -- 1. Award 3 points for EXACT SCORE
         UPDATE public.league_members lm
         SET total_score = total_score + 3
         FROM public.predictions p
@@ -93,6 +93,19 @@ BEGIN
           AND p.user_id = lm.user_id
           AND p.guess_a = NEW.score_a
           AND p.guess_b = NEW.score_b;
+
+        -- 2. Award 1 point for CORRECT WINNER (excluding draws)
+        UPDATE public.league_members lm
+        SET total_score = total_score + 1
+        FROM public.predictions p
+        WHERE p.match_id = NEW.id
+          AND p.user_id = lm.user_id
+          -- Same winner (SIGN comparison)
+          AND SIGN(p.guess_a - p.guess_b) = SIGN(NEW.score_a - NEW.score_b)
+          -- Not a draw (as per user request: "empate acho que n precisa contabilizar pnto")
+          AND NEW.score_a != NEW.score_b
+          -- NOT an exact score (already got 3 points)
+          AND NOT (p.guess_a = NEW.score_a AND p.guess_b = NEW.score_b);
     END IF;
     RETURN NEW;
 END;

@@ -9,18 +9,29 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
 
-    // Fetch ALL matches for today (May 13th, 2026)
-    const response = await fetch('https://v3.football.api-sports.io/fixtures?date=2026-05-13', {
-      headers: {
-        'x-apisports-key': API_FOOTBALL_KEY!,
-        'x-apisports-host': 'v3.football.api-sports.io'
+    // Fetch matches for today and yesterday to ensure we get results of finished games
+    const dates = [
+      new Date().toISOString().split('T')[0], // Today
+      new Date(Date.now() - 86400000).toISOString().split('T')[0] // Yesterday
+    ]
+
+    let allFixtures: any[] = []
+
+    for (const date of dates) {
+      console.log(`Fetching fixtures for ${date}...`)
+      const response = await fetch(`https://v3.football.api-sports.io/fixtures?date=${date}`, {
+        headers: {
+          'x-apisports-key': API_FOOTBALL_KEY!,
+          'x-apisports-host': 'v3.football.api-sports.io'
+        }
+      })
+      const data = await response.json()
+      if (data.response) {
+        allFixtures = [...allFixtures, ...data.response]
       }
-    })
+    }
 
-    const data = await response.json()
-    const fixtures = data.response
-
-    const updates = fixtures.map((f: any) => ({
+    const updates = allFixtures.map((f: any) => ({
       id: f.fixture.id,
       team_a: f.teams.home.name,
       team_b: f.teams.away.name,
@@ -41,7 +52,7 @@ serve(async (req) => {
 
     if (error) throw error
 
-    return new Response(JSON.stringify({ message: `Synced ${updates.length} matches` }), {
+    return new Response(JSON.stringify({ message: `Synced ${updates.length} matches across ${dates.join(', ')}` }), {
       headers: { 'Content-Type': 'application/json' },
       status: 200
     })

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use, useRef } from "react"
 import { supabase } from "@/lib/supabase"
-import { Trophy, Medal, Send, Minus, Users, Calendar, MessageSquare, Loader2 } from "lucide-react"
+import { Trophy, Medal, Send, Minus, Users, Calendar, MessageSquare, Loader2, CheckCircle2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { MatchCard } from "@/components/MatchCard"
@@ -32,7 +32,7 @@ interface Message {
 
 export default function LeaguePage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise)
-  const [activeTab, setActiveTab] = useState<'ranking' | 'matches' | 'chat'>('ranking')
+  const [activeTab, setActiveTab] = useState<'ranking' | 'matches' | 'results' | 'chat'>('ranking')
   const [members, setMembers] = useState<Member[]>([])
   const [league, setLeague] = useState<any>(null)
   const [matches, setMatches] = useState<any[]>([])
@@ -94,14 +94,21 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
     if (membersData) setMembers(membersData as any)
 
     if (leagueData) {
-      let query = supabase.from('matches').select('*').order('match_time', { ascending: true })
-      const allowedLeagues = leagueData.settings?.leagues || []
-      if (allowedLeagues.length > 0) query = query.in('league_name', allowedLeagues)
-      const { data: matchesData } = await query.limit(20)
+      // Fetch both finished and upcoming matches
+      const { data: matchesData } = await supabase
+        .from('matches')
+        .select('*')
+        .order('match_time', { ascending: false })
+        .limit(40)
+
       if (matchesData) {
         setMatches(matchesData)
         const memberIds = membersData?.map(m => m.user_id) || []
-        const { data: predData } = await supabase.from('predictions').select('*, profiles(full_name, username, avatar_url)').in('match_id', matchesData.map(m => m.id)).in('user_id', memberIds)
+        const { data: predData } = await supabase
+          .from('predictions')
+          .select('*, profiles(full_name, username, avatar_url)')
+          .in('match_id', matchesData.map(m => m.id))
+          .in('user_id', memberIds)
         if (predData) {
           setAllPredictions(predData)
           if (user) {
@@ -171,20 +178,21 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
       </header>
 
       {/* Tabs */}
-      <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10 mb-6 shrink-0">
-        {(['ranking', 'matches', 'chat'] as const).map((tab) => (
+      <div className="flex p-1 bg-white/5 rounded-2xl border border-white/10 mb-6 shrink-0 overflow-x-auto no-scrollbar">
+        {(['ranking', 'matches', 'results', 'chat'] as const).map((tab) => (
           <button 
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2",
+              "flex-1 min-w-[80px] py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2",
               activeTab === tab ? "bg-primary text-white shadow-lg" : "text-muted-foreground hover:text-white"
             )}
           >
             {tab === 'ranking' && <Trophy className="h-3 w-3" />}
             {tab === 'matches' && <Calendar className="h-3 w-3" />}
+            {tab === 'results' && <CheckCircle2 className="h-3 w-3" />}
             {tab === 'chat' && <MessageSquare className="h-3 w-3" />}
-            {tab === 'ranking' ? 'Ranking' : tab === 'matches' ? 'Jogos' : 'Resenha'}
+            {tab === 'ranking' ? 'Ranking' : tab === 'matches' ? 'Jogos' : tab === 'results' ? 'Resultados' : 'Resenha'}
           </button>
         ))}
       </div>
@@ -208,9 +216,90 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
 
           {activeTab === 'matches' && (
             <motion.div key="matches" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="h-full overflow-y-auto pr-2 no-scrollbar space-y-4 pb-4">
-              {matches.map((match) => (
+              {matches.filter(m => m.status !== 'FT').map((match) => (
                 <MatchCard key={match.id} match={match} prediction={predictions[match.id]} othersPredictions={allPredictions.filter(p => p.match_id === match.id && p.user_id !== currentUserId)} onPredict={handlePredict} />
               ))}
+            </motion.div>
+          )}
+
+          {activeTab === 'results' && (
+            <motion.div key="results" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="h-full overflow-y-auto pr-2 no-scrollbar space-y-4 pb-4">
+              {matches.filter(m => m.status === 'FT').map((match) => {
+                const matchPreds = allPredictions.filter(p => p.match_id === match.id)
+                return (
+                  <div key={match.id} className="glass p-5 rounded-[2.5rem] border-l-4 border-l-primary/30 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">{match.league_name}</span>
+                      <div className="bg-white/5 px-2 py-1 rounded-lg text-[9px] font-bold text-muted-foreground uppercase">
+                        {new Date(match.match_time).toLocaleDateString('pt-BR')}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col items-center gap-2 flex-1">
+                        <img src={match.team_a_logo} className="h-10 w-10 object-contain" />
+                        <span className="text-[10px] font-bold text-center uppercase truncate w-full">{match.team_a}</span>
+                      </div>
+
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl font-black">{match.score_a}</span>
+                          <span className="text-muted-foreground font-black italic text-xs">FT</span>
+                          <span className="text-2xl font-black">{match.score_b}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center gap-2 flex-1">
+                        <img src={match.team_b_logo} className="h-10 w-10 object-contain" />
+                        <span className="text-[10px] font-bold text-center uppercase truncate w-full">{match.team_b}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-white/5">
+                      <p className="text-[10px] font-black uppercase text-muted-foreground mb-3 flex items-center gap-2">
+                        <Users className="h-3 w-3" />
+                        Palpites da Galera
+                      </p>
+                      <div className="grid gap-2">
+                        {matchPreds.map(p => {
+                          const isExact = p.guess_a === match.score_a && p.guess_b === match.score_b
+                          const isWinner = Math.sign(p.guess_a - p.guess_b) === Math.sign(match.score_a - match.score_b) && match.score_a !== match.score_b
+                          const points = isExact ? 3 : isWinner ? 1 : 0
+                          
+                          return (
+                            <div key={p.user_id} className={cn(
+                              "flex items-center justify-between p-2 px-4 rounded-xl border transition-all",
+                              isExact ? "bg-primary/10 border-primary/30" : "bg-white/5 border-white/5"
+                            )}>
+                              <div className="flex items-center gap-2">
+                                <img src={p.profiles?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.user_id}`} className="h-5 w-5 rounded-full" />
+                                <span className={cn("text-[10px] font-bold", p.user_id === currentUserId && "text-primary")}>
+                                  {p.profiles?.username || p.profiles?.full_name || 'Amigo'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <span className="text-xs font-black">{p.guess_a} x {p.guess_b}</span>
+                                <span className={cn(
+                                  "text-[10px] font-black px-2 py-0.5 rounded-full",
+                                  points === 3 ? "bg-green-500 text-white" : points === 1 ? "bg-blue-500 text-white" : "bg-white/10 text-muted-foreground"
+                                )}>
+                                  {points} PTS
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        {matchPreds.length === 0 && <p className="text-[9px] text-muted-foreground italic text-center">Nenhum palpite registrado.</p>}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+              {matches.filter(m => m.status === 'FT').length === 0 && (
+                <div className="glass p-12 text-center rounded-3xl">
+                  <p className="text-sm text-muted-foreground">Nenhum jogo encerrado ainda.</p>
+                </div>
+              )}
             </motion.div>
           )}
 
