@@ -102,14 +102,21 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
 
       const allowedLeagues = (leagueData.settings?.leagues || []) as string[]
       
-      const { data: matchesData } = await query.limit(100)
+      const { data: matchesData } = await query.limit(200)
 
       if (matchesData) {
+        console.log('Total matches fetched:', matchesData.length)
+        console.log('League filters:', allowedLeagues)
+        
         // Filter in JS for case-insensitivity and more flexibility
         const filteredMatches = allowedLeagues.length > 0 
-          ? matchesData.filter(m => allowedLeagues.some(al => al.toLowerCase() === m.league_name?.toLowerCase()))
+          ? matchesData.filter(m => {
+              const match = allowedLeagues.some(al => al.toLowerCase().trim() === m.league_name?.toLowerCase().trim())
+              return match
+            })
           : matchesData
           
+        console.log('Matches after filter:', filteredMatches.length)
         setMatches(filteredMatches)
         const memberIds = membersData?.map(m => m.user_id) || []
         const { data: predData } = await supabase

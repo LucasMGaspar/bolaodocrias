@@ -9,11 +9,13 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
 
-    // Fetch matches for today and yesterday to ensure we get results of finished games
-    const dates = [
-      new Date().toISOString().split('T')[0], // Today
-      new Date(Date.now() - 86400000).toISOString().split('T')[0] // Yesterday
-    ]
+    // Fetch matches for the last 7 days to ensure all results are captured
+    const dates = []
+    for (let i = 0; i < 7; i++) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      dates.push(d.toISOString().split('T')[0])
+    }
 
     let allFixtures: any[] = []
 
