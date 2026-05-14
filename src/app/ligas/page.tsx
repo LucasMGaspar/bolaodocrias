@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
-import { Trophy, Plus, Users, Hash, ChevronRight, LogIn, Check } from "lucide-react"
+import { Trophy, Plus, Users, Hash, ChevronRight, LogIn, Check, Calendar } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
