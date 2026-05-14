@@ -94,15 +94,20 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
     if (membersData) setMembers(membersData as any)
 
     if (leagueData) {
-      // Fetch matches and apply league filtering from settings
-      let query = supabase
+      const allowedLeagues = (leagueData.settings?.leagues || []) as string[]
+
+      // Janela de 3 dias atrás até 3 dias à frente em UTC — captura jogos noturnos do Brasil
+      const from = new Date()
+      from.setDate(from.getDate() - 3)
+      const to = new Date()
+      to.setDate(to.getDate() + 3)
+
+      const { data: matchesData } = await supabase
         .from('matches')
         .select('*')
-        .order('match_time', { ascending: false })
-
-      const allowedLeagues = (leagueData.settings?.leagues || []) as string[]
-      
-      const { data: matchesData } = await query.limit(200)
+        .gte('match_time', from.toISOString())
+        .lte('match_time', to.toISOString())
+        .order('match_time', { ascending: true })
 
       if (matchesData) {
         console.log('Total matches fetched:', matchesData.length)

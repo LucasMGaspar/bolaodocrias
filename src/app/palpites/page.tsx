@@ -36,7 +36,11 @@ export default function PalpitesPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data: matchesData } = await supabase.from('matches').select('*').order('match_time', { ascending: false })
+    const from = new Date()
+    from.setDate(from.getDate() - 3)
+    const to = new Date()
+    to.setDate(to.getDate() + 3)
+    const { data: matchesData } = await supabase.from('matches').select('*').gte('match_time', from.toISOString()).lte('match_time', to.toISOString()).order('match_time', { ascending: true })
     const { data: predictionsData } = await supabase.from('predictions').select('*').eq('user_id', user.id)
 
     if (matchesData) setMatches(matchesData)
