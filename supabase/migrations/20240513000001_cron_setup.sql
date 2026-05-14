@@ -10,8 +10,8 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS "net";
 
 SELECT cron.schedule(
-    'sync-matches-every-minute',
-    '* * * * *',
+    'sync-matches-hourly',
+    '0 * * * *',
     $$
     SELECT net.http_post(
         url := 'https://bpeaxzhrhebmhbehbrli.supabase.co/functions/v1/sync-matches',

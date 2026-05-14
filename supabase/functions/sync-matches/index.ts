@@ -19,9 +19,9 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
 
-    // Fetch matches for the last 7 days to ensure all results are captured
+    // Fetch matches for the last 2 days (hoje + ontem) — conserva quota da API
     const dates = []
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 2; i++) {
       const d = new Date()
       d.setDate(d.getDate() - i)
       dates.push(d.toISOString().split('T')[0])
