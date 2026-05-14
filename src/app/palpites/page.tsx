@@ -90,7 +90,9 @@ export default function PalpitesPage() {
   const calculatePoints = (match: Match, pred: any) => {
     if (!pred || match.status !== 'FT') return null
     if (pred.score_a === match.score_a && pred.score_b === match.score_b) return 3
-    // Could add more logic for partial points here (e.g., guessing the winner but not the score)
+    const predictedWinner = Math.sign(pred.score_a - pred.score_b)
+    const actualWinner = Math.sign((match.score_a ?? 0) - (match.score_b ?? 0))
+    if (predictedWinner === actualWinner && actualWinner !== 0) return 1
     return 0
   }
 
@@ -146,9 +148,9 @@ export default function PalpitesPage() {
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">{match.league_name}</span>
                     {points !== null && (
-                      <div className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter", points === 3 ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500")}>
+                      <div className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter", points === 3 ? "bg-green-500/20 text-green-500" : points === 1 ? "bg-blue-500/20 text-blue-400" : "bg-red-500/20 text-red-500")}>
                         <Target className="h-3 w-3" />
-                        {points === 3 ? "+3 PONTOS (CERTEIRO!)" : "0 PONTOS (ERROU!)"}
+                        {points === 3 ? "+3 PONTOS (CERTEIRO!)" : points === 1 ? "+1 PONTO (VENCEDOR!)" : "0 PONTOS (ERROU!)"}
                       </div>
                     )}
                   </div>
