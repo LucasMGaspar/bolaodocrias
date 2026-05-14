@@ -158,12 +158,11 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
   const handlePredict = async (matchId: number, scoreA: number, scoreB: number) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { error } = await supabase.from('predictions').upsert({ 
-      user_id: user.id, 
-      match_id: matchId, 
-      guess_a: scoreA, 
-      guess_b: scoreB, 
-      updated_at: new Date().toISOString() 
+    const { error } = await supabase.from('predictions').upsert({
+      user_id: user.id,
+      match_id: matchId,
+      guess_a: scoreA,
+      guess_b: scoreB
     })
     if (!error) {
       setPredictions(prev => ({ ...prev, [matchId]: { match_id: matchId, score_a: scoreA, score_b: scoreB } }))

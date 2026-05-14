@@ -59,12 +59,11 @@ export default function PalpitesPage() {
     
     console.log("Tentando salvar palpite:", { matchId, scoreA, scoreB, userId: user.id })
     
-    const { error } = await supabase.from('predictions').upsert({ 
-      user_id: user.id, 
-      match_id: matchId, 
-      guess_a: scoreA, 
-      guess_b: scoreB, 
-      updated_at: new Date().toISOString() 
+    const { error } = await supabase.from('predictions').upsert({
+      user_id: user.id,
+      match_id: matchId,
+      guess_a: scoreA,
+      guess_b: scoreB
     })
     
     if (error) {
