@@ -10,8 +10,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const API_HEADERS = {
+  'x-apisports-key': API_FOOTBALL_KEY!,
+  'x-apisports-host': 'v3.football.api-sports.io'
+}
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -19,7 +23,7 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
 
-    // Fetch matches for the last 2 days (hoje + ontem) — conserva quota da API
+    // Fetch matches for the last 2 days (hoje + ontem)
     const dates = []
     for (let i = 0; i < 2; i++) {
       const d = new Date()
@@ -30,12 +34,8 @@ serve(async (req) => {
     let allFixtures: any[] = []
 
     for (const date of dates) {
-      console.log(`Fetching fixtures for ${date}...`)
       const response = await fetch(`https://v3.football.api-sports.io/fixtures?date=${date}`, {
-        headers: {
-          'x-apisports-key': API_FOOTBALL_KEY!,
-          'x-apisports-host': 'v3.football.api-sports.io'
-        }
+        headers: API_HEADERS
       })
       const data = await response.json()
       if (data.response) {
@@ -57,14 +57,75 @@ serve(async (req) => {
       updated_at: new Date().toISOString()
     }))
 
-    // Upsert into Supabase
-    const { error } = await supabase
+    if (updates.length > 0) {
+      const { error } = await supabase
+        .from('matches')
+        .upsert(updates, { onConflict: 'id' })
+      if (error) throw error
+    }
+
+    // Refresh logos: busca IDs dos times com logos do CDN antigo e actualiza
+    const { data: brokenMatches } = await supabase
       .from('matches')
-      .upsert(updates, { onConflict: 'id' })
+      .select('id, team_a_logo, team_b_logo')
+      .or('team_a_logo.like.%media.api-sports.io%,team_b_logo.like.%media.api-sports.io%')
+      .limit(20)
 
-    if (error) throw error
+    let logosFixed = 0
 
-    return new Response(JSON.stringify({ message: `Synced ${updates.length} matches across ${dates.join(', ')}` }), {
+    if (brokenMatches && brokenMatches.length > 0) {
+      // Extrai IDs únicos dos times a partir das URLs antigas
+      const teamIds = new Set<number>()
+      for (const m of brokenMatches) {
+        const idA = extractTeamId(m.team_a_logo)
+        const idB = extractTeamId(m.team_b_logo)
+        if (idA) teamIds.add(idA)
+        if (idB) teamIds.add(idB)
+      }
+
+      // Busca logos actuais da API por batch de IDs
+      const idsArr = Array.from(teamIds).slice(0, 20)
+      if (idsArr.length > 0) {
+        const res = await fetch(`https://v3.football.api-sports.io/teams?id=${idsArr[0]}`, {
+          headers: API_HEADERS
+        })
+        const teamData = await res.json()
+
+        const logoMap: Record<number, string> = {}
+        if (teamData.response) {
+          for (const t of teamData.response) {
+            logoMap[t.team.id] = t.team.logo
+          }
+        }
+
+        // Busca restantes em paralelo (até 10 chamadas extra)
+        await Promise.all(idsArr.slice(1, 11).map(async (id) => {
+          const r = await fetch(`https://v3.football.api-sports.io/teams?id=${id}`, { headers: API_HEADERS })
+          const d = await r.json()
+          if (d.response?.[0]) logoMap[id] = d.response[0].team.logo
+        }))
+
+        // Actualiza cada match com os novos logos
+        for (const m of brokenMatches) {
+          const idA = extractTeamId(m.team_a_logo)
+          const idB = extractTeamId(m.team_b_logo)
+          const newLogoA = idA ? logoMap[idA] : undefined
+          const newLogoB = idB ? logoMap[idB] : undefined
+
+          if (newLogoA || newLogoB) {
+            await supabase.from('matches').update({
+              ...(newLogoA && { team_a_logo: newLogoA }),
+              ...(newLogoB && { team_b_logo: newLogoB }),
+            }).eq('id', m.id)
+            logosFixed++
+          }
+        }
+      }
+    }
+
+    return new Response(JSON.stringify({
+      message: `Synced ${updates.length} matches. Fixed ${logosFixed} logos.`
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200
     })
@@ -76,19 +137,25 @@ serve(async (req) => {
   }
 })
 
+function extractTeamId(url: string): number | null {
+  if (!url) return null
+  const match = url.match(/\/teams\/(\d+)\.png/)
+  return match ? parseInt(match[1]) : null
+}
+
 function mapStatus(shortStatus: string) {
   switch (shortStatus) {
     case 'NS': return 'pending'
     case '1H':
     case '2H':
     case 'HT':
-    case 'ET': // Extra Time
-    case 'BT': // Break Time
-    case 'P':  // Penalty In Progress
+    case 'ET':
+    case 'BT':
+    case 'P':
       return 'live'
-    case 'FT':  // Full Time
-    case 'AET': // After Extra Time
-    case 'PEN': // After Penalties
+    case 'FT':
+    case 'AET':
+    case 'PEN':
       return 'FT'
     default: return 'pending'
   }
