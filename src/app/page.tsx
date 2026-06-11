@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { Trophy, Users, Star, TrendingUp, Calendar } from "lucide-react"
@@ -39,7 +41,7 @@ export default function Home() {
       .eq('user_id', user.id)
 
     if (members) {
-      const points = members.reduce((acc, m) => acc + (m.total_score || 0), 0)
+      const points = members.reduce((acc: number, m: any) => acc + (m.total_score || 0), 0)
       setStats({
         totalPoints: points,
         leaguesCount: members.length

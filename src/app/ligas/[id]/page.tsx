@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState, use, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { Trophy, Medal, Send, Minus, Users, Calendar, MessageSquare, Loader2, CheckCircle2 } from "lucide-react"
@@ -52,8 +54,8 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
     // Real-time for Ranking
     const rankingChannel = supabase
       .channel(`league-${params.id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'league_members', filter: `league_id=eq.${params.id}` }, 
-      (payload) => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'league_members', filter: `league_id=eq.${params.id}` },
+      (payload: any) => {
         setMembers(prev => {
           const updated = prev.map(m => m.user_id === payload.new.user_id ? { ...m, total_score: payload.new.total_score } : m)
           return [...updated].sort((a, b) => b.total_score - a.total_score)
@@ -64,7 +66,7 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
     const chatChannel = supabase
       .channel(`chat-${params.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'league_messages', filter: `league_id=eq.${params.id}` },
-      async (payload) => {
+      async (payload: any) => {
         const { data } = await supabase.from('profiles').select('full_name, avatar_url').eq('id', payload.new.user_id).single()
         const fullMsg = { ...payload.new, profiles: data } as Message
         setMessages(prev => [...prev, fullMsg])
@@ -96,11 +98,11 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
     if (leagueData) {
       const allowedLeagues = (leagueData.settings?.leagues || []) as string[]
 
-      // Janela de 3 dias atrás até 3 dias à frente em UTC — captura jogos noturnos do Brasil
+      // Janela de 7 dias atrás até 45 dias à frente — cobre a Copa do Mundo 2026 inteira
       const from = new Date()
-      from.setDate(from.getDate() - 3)
+      from.setDate(from.getDate() - 7)
       const to = new Date()
-      to.setDate(to.getDate() + 3)
+      to.setDate(to.getDate() + 45)
 
       const { data: matchesData } = await supabase
         .from('matches')
@@ -110,31 +112,25 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
         .order('match_time', { ascending: true })
 
       if (matchesData) {
-        console.log('Total matches fetched:', matchesData.length)
-        console.log('League filters:', allowedLeagues)
-        
         // Filter in JS for case-insensitivity and more flexibility
-        const filteredMatches = allowedLeagues.length > 0 
-          ? matchesData.filter(m => {
-              const match = allowedLeagues.some(al => al.toLowerCase().trim() === m.league_name?.toLowerCase().trim())
-              return match
-            })
+        const filteredMatches = allowedLeagues.length > 0
+          ? matchesData.filter((m: any) =>
+              allowedLeagues.some(al => al.toLowerCase().trim() === m.league_name?.toLowerCase().trim())
+            )
           : matchesData
-          
-        console.log('Matches after filter:', filteredMatches.length)
         setMatches(filteredMatches)
-        const memberIds = membersData?.map(m => m.user_id) || []
+        const memberIds = membersData?.map((m: any) => m.user_id) || []
         const { data: predData } = await supabase
           .from('predictions')
           .select('*, profiles(full_name, username, avatar_url)')
-          .in('match_id', matchesData.map(m => m.id))
+          .in('match_id', matchesData.map((m: any) => m.id))
           .in('user_id', memberIds)
         if (predData) {
           setAllPredictions(predData)
           if (user) {
             const myPredMap: Record<number, any> = {}
-            predData.filter(p => p.user_id === user.id).forEach(p => { 
-              myPredMap[p.match_id] = { ...p, score_a: p.guess_a, score_b: p.guess_b } 
+            predData.filter((p: any) => p.user_id === user.id).forEach((p: any) => {
+              myPredMap[p.match_id] = { ...p, score_a: p.guess_a, score_b: p.guess_b }
             })
             setPredictions(myPredMap)
           }

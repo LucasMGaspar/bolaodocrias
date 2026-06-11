@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { Loader2, ChevronLeft, ChevronRight, Calendar, CheckCircle2, XCircle, Target } from "lucide-react"
@@ -37,17 +39,17 @@ export default function PalpitesPage() {
     if (!user) return
 
     const from = new Date()
-    from.setDate(from.getDate() - 3)
+    from.setDate(from.getDate() - 7)
     const to = new Date()
-    to.setDate(to.getDate() + 3)
+    to.setDate(to.getDate() + 45)
     const { data: matchesData } = await supabase.from('matches').select('*').gte('match_time', from.toISOString()).lte('match_time', to.toISOString()).order('match_time', { ascending: true })
     const { data: predictionsData } = await supabase.from('predictions').select('*').eq('user_id', user.id)
 
     if (matchesData) setMatches(matchesData)
     if (predictionsData) {
       const predMap: Record<number, any> = {}
-      predictionsData.forEach(p => { 
-        predMap[p.match_id] = { ...p, score_a: p.guess_a, score_b: p.guess_b } 
+      predictionsData.forEach((p: any) => {
+        predMap[p.match_id] = { ...p, score_a: p.guess_a, score_b: p.guess_b }
       })
       setPredictions(predMap)
     }
@@ -61,8 +63,6 @@ export default function PalpitesPage() {
       return
     }
     
-    console.log("Tentando salvar palpite:", { matchId, scoreA, scoreB, userId: user.id })
-    
     const { error } = await supabase.from('predictions').upsert({
       user_id: user.id,
       match_id: matchId,
@@ -71,7 +71,6 @@ export default function PalpitesPage() {
     })
     
     if (error) {
-      console.error("Erro ao salvar palpite:", error)
       alert("Erro ao salvar: " + error.message)
     } else {
       setPredictions(prev => ({ ...prev, [matchId]: { match_id: matchId, score_a: scoreA, score_b: scoreB } }))

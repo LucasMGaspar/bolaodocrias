@@ -23,23 +23,31 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
 
-    // Fetch matches for the last 2 days (hoje + ontem)
-    const dates = []
-    for (let i = 0; i < 2; i++) {
-      const d = new Date()
-      d.setDate(d.getDate() - i)
-      dates.push(d.toISOString().split('T')[0])
-    }
-
     let allFixtures: any[] = []
 
-    for (const date of dates) {
+    // Busca todos os 104 jogos da Copa do Mundo 2026 (fase de grupos + mata-mata)
+    const wcResponse = await fetch('https://v3.football.api-sports.io/fixtures?league=1&season=2026', {
+      headers: API_HEADERS
+    })
+    const wcData = await wcResponse.json()
+    if (wcData.response) {
+      allFixtures = [...wcData.response]
+    }
+
+    // Busca ontem e hoje para manter scores ao vivo de todas as ligas
+    const wcIds = new Set(allFixtures.map((f: any) => f.fixture.id))
+    for (let i = 1; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const date = d.toISOString().split('T')[0]
       const response = await fetch(`https://v3.football.api-sports.io/fixtures?date=${date}`, {
         headers: API_HEADERS
       })
       const data = await response.json()
       if (data.response) {
-        allFixtures = [...allFixtures, ...data.response]
+        // Evita duplicatas com os jogos da Copa do Mundo já buscados
+        const extra = data.response.filter((f: any) => !wcIds.has(f.fixture.id))
+        allFixtures = [...allFixtures, ...extra]
       }
     }
 
@@ -135,7 +143,8 @@ serve(async (req) => {
       status: 200
     })
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : String(error)
+    return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500
     })

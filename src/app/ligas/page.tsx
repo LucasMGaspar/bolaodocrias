@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { Trophy, Plus, Users, Hash, ChevronRight, LogIn, Check, Calendar } from "lucide-react"
@@ -34,7 +36,7 @@ export default function LeaguesPage() {
   async function fetchAvailableCompetitions() {
     const { data } = await supabase.from('matches').select('league_name')
     if (data) {
-      const unique = Array.from(new Set(data.map(m => m.league_name))).filter(Boolean) as string[]
+      const unique = Array.from(new Set(data.map((m: any) => m.league_name))).filter(Boolean) as string[]
       setAvailableLeagues(unique)
     }
   }
