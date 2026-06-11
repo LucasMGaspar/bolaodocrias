@@ -29,13 +29,14 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Se não estiver logado e não estiver na página de login, redireciona para /login
-  if (!user && !request.nextUrl.pathname.startsWith('/login')) {
+  // Se não estiver logado e não estiver em rota pública, redireciona para /login
+  const isPublic = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/convite')
+  if (!user && !isPublic) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Se estiver logado e tentar ir para /login, redireciona para a home
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
+  if (user && !request.nextUrl.pathname.startsWith('/convite') && request.nextUrl.pathname.startsWith('/login')) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 

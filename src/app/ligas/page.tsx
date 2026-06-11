@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
-import { Trophy, Plus, Users, Hash, ChevronRight, LogIn, Check, Calendar } from "lucide-react"
+import { Trophy, Plus, Users, Hash, ChevronRight, LogIn, Check, Calendar, Share2 } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
@@ -192,40 +192,65 @@ export default function LeaguesPage() {
 
       <div className="grid gap-3">
         {leagues.map((league) => (
-          <Link key={league.id} href={`/ligas/${league.id}`}>
-            <motion.div
-              whileTap={{ scale: 0.98 }}
-              className="p-4 rounded-2xl flex items-center gap-4"
-              style={{
-                background: "rgba(0,45,18,0.52)",
-                backdropFilter: "blur(14px)",
-                border: "1px solid rgba(255,193,7,0.18)",
-                borderLeft: "4px solid rgba(255,193,7,0.6)",
-              }}
-            >
-              <div
-                className="h-12 w-12 rounded-xl flex items-center justify-center overflow-hidden"
+          <div key={league.id} className="relative">
+            <Link href={`/ligas/${league.id}`}>
+              <motion.div
+                whileTap={{ scale: 0.98 }}
+                className="p-4 rounded-2xl flex items-center gap-4 pr-20"
                 style={{
-                  background: "rgba(255,193,7,0.1)",
-                  border: "1px solid rgba(255,193,7,0.2)",
+                  background: "rgba(0,45,18,0.52)",
+                  backdropFilter: "blur(14px)",
+                  border: "1px solid rgba(255,193,7,0.18)",
+                  borderLeft: "4px solid rgba(255,193,7,0.6)",
                 }}
               >
-                {league.image_url ? (
-                  <img src={league.image_url} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <Trophy className="h-6 w-6" style={{ color: "#FFC107" }} />
-                )}
-              </div>
-              <div className="flex-1">
-                <h3 className="font-black">{league.name}</h3>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-0.5">
-                  <Hash className="h-3 w-3" />
-                  <span>{league.invite_code}</span>
+                <div
+                  className="h-12 w-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0"
+                  style={{
+                    background: "rgba(255,193,7,0.1)",
+                    border: "1px solid rgba(255,193,7,0.2)",
+                  }}
+                >
+                  {league.image_url ? (
+                    <img src={league.image_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Trophy className="h-6 w-6" style={{ color: "#FFC107" }} />
+                  )}
                 </div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </motion.div>
-          </Link>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-black truncate">{league.name}</h3>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-0.5">
+                    <Hash className="h-3 w-3" />
+                    <span>{league.invite_code}</span>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+              </motion.div>
+            </Link>
+
+            {/* Share button */}
+            <button
+              onClick={async (e) => {
+                e.preventDefault()
+                const link = `${window.location.origin}/convite/${league.invite_code}`
+                if (navigator.share) {
+                  await navigator.share({ title: league.name, text: `Entre no meu bolão da Copa!`, url: link })
+                } else {
+                  await navigator.clipboard.writeText(link)
+                  alert('Link copiado!')
+                }
+              }}
+              className="absolute right-14 top-1/2 -translate-y-1/2 h-9 w-9 rounded-xl flex items-center justify-center transition-all active:scale-90"
+              style={{
+                background: "rgba(255,193,7,0.12)",
+                border: "1px solid rgba(255,193,7,0.25)",
+                color: "#FFC107",
+              }}
+              title="Compartilhar link de convite"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+          </div>
         ))}
 
         {leagues.length === 0 && !loading && (
