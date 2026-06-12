@@ -83,29 +83,39 @@ CREATE POLICY "View others predictions after match starts" ON public.predictions
 CREATE OR REPLACE FUNCTION calculate_match_points()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Only proceed if status changed to 'FT' (Full Time)
     IF NEW.status = 'FT' AND OLD.status != 'FT' THEN
-        -- 1. Award 3 points for EXACT SCORE
+        -- 3 pontos: placar exato, respeitando campeonatos válidos da liga
         UPDATE public.league_members lm
         SET total_score = total_score + 3
-        FROM public.predictions p
+        FROM public.predictions p,
+             public.leagues l
         WHERE p.match_id = NEW.id
           AND p.user_id = lm.user_id
+          AND l.id = lm.league_id
           AND p.guess_a = NEW.score_a
-          AND p.guess_b = NEW.score_b;
+          AND p.guess_b = NEW.score_b
+          AND (
+            l.settings->'leagues' IS NULL
+            OR jsonb_array_length(l.settings->'leagues') = 0
+            OR l.settings->'leagues' ? NEW.league_name
+          );
 
-        -- 2. Award 1 point for CORRECT WINNER (excluding draws)
+        -- 1 ponto: vencedor certo (exceto empate, exceto placar exato)
         UPDATE public.league_members lm
         SET total_score = total_score + 1
-        FROM public.predictions p
+        FROM public.predictions p,
+             public.leagues l
         WHERE p.match_id = NEW.id
           AND p.user_id = lm.user_id
-          -- Same winner (SIGN comparison)
+          AND l.id = lm.league_id
           AND SIGN(p.guess_a - p.guess_b) = SIGN(NEW.score_a - NEW.score_b)
-          -- Not a draw (as per user request: "empate acho que n precisa contabilizar pnto")
           AND NEW.score_a != NEW.score_b
-          -- NOT an exact score (already got 3 points)
-          AND NOT (p.guess_a = NEW.score_a AND p.guess_b = NEW.score_b);
+          AND NOT (p.guess_a = NEW.score_a AND p.guess_b = NEW.score_b)
+          AND (
+            l.settings->'leagues' IS NULL
+            OR jsonb_array_length(l.settings->'leagues') = 0
+            OR l.settings->'leagues' ? NEW.league_name
+          );
     END IF;
     RETURN NEW;
 END;
