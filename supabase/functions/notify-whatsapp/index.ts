@@ -202,8 +202,8 @@ serve(async (req) => {
       sent.push(`result:${match.team_a}x${match.team_b}`)
     }
 
-    // ── 4. RANKING DIÁRIO (23h UTC = meia-noite BRT) ─────────────────────────
-    if (now.getUTCHours() === 23) {
+    // ── 4. RANKING DIÁRIO (03h UTC = meia-noite BRT) ─────────────────────────
+    if (now.getUTCHours() === 3) {
       const { data: members } = await supabase
         .from('league_members')
         .select('user_id, total_score, profiles(full_name)')
