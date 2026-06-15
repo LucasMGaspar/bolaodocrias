@@ -114,6 +114,7 @@ export default function PalpitesPage() {
   }
 
   const filteredByStatus = matches.filter(m => activeTab === 'upcoming' ? m.status !== 'FT' : m.status === 'FT')
+    .sort((a, b) => activeTab === 'finished' ? new Date(b.match_time).getTime() - new Date(a.match_time).getTime() : 0)
   const leagues = ["Todas", ...Array.from(new Set(filteredByStatus.map(m => m.league_name))).filter(Boolean)]
   const finalMatches = selectedLeague === "Todas" ? filteredByStatus : filteredByStatus.filter(m => m.league_name === selectedLeague)
 

@@ -362,7 +362,7 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
           {activeTab === 'results' && (
             <motion.div key="results" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               className="h-full overflow-y-auto pr-1 no-scrollbar space-y-4 pb-4">
-              {matches.filter(m => m.status === 'FT').map((match) => {
+              {[...matches].filter(m => m.status === 'FT').reverse().map((match) => {
                 const matchPreds = allPredictions.filter(p => p.match_id === match.id)
                 return (
                   <div
