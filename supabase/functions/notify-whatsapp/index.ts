@@ -1,82 +1,163 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const WAPI_INSTANCE_ID = Deno.env.get('WAPI_INSTANCE_ID')
-const WAPI_TOKEN = Deno.env.get('WAPI_TOKEN')
-const WHATSAPP_GROUP_ID = Deno.env.get('WHATSAPP_GROUP_ID')
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+const WAPI_INSTANCE_ID = Deno.env.get('WAPI_INSTANCE_ID')!
+const WAPI_TOKEN = Deno.env.get('WAPI_TOKEN')!
+const WHATSAPP_GROUP_ID = Deno.env.get('WHATSAPP_GROUP_ID')!
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const APP_URL = 'https://bolaodocrias.vercel.app'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+async function sendWA(message: string) {
+  await fetch(
+    `https://api.w-api.app/v1/message/send-text?instanceId=${WAPI_INSTANCE_ID}`,
+    {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${WAPI_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: WHATSAPP_GROUP_ID, message }),
+    }
+  )
+}
+
+function toBRT(utcStr: string): string {
+  const brt = new Date(new Date(utcStr).getTime() - 3 * 60 * 60 * 1000)
+  return `${brt.getUTCHours().toString().padStart(2, '0')}:${brt.getUTCMinutes().toString().padStart(2, '0')}`
+}
+
+function calcPts(pred: any, match: any): number {
+  if (pred.guess_a === match.score_a && pred.guess_b === match.score_b) return 3
+  const pw = Math.sign(pred.guess_a - pred.guess_b)
+  const rw = Math.sign((match.score_a ?? 0) - (match.score_b ?? 0))
+  if (pw === rw && rw !== 0) return 1
+  if (pw === 0 && rw === 0) return 1
+  return 0
+}
+
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
-
-    // Jogos começando nos próximos 30-90 minutos
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     const now = new Date()
-    const from = new Date(now.getTime() + 30 * 60 * 1000)
-    const to = new Date(now.getTime() + 90 * 60 * 1000)
+    const sent: string[] = []
 
-    const { data: upcomingMatches } = await supabase
+    // ── 1. PRÓXIMOS (30–90 min) ──────────────────────────────────────────────
+    const { data: upcoming } = await supabase
       .from('matches')
       .select('*')
       .eq('status', 'pending')
-      .gte('match_time', from.toISOString())
-      .lte('match_time', to.toISOString())
-      .order('match_time', { ascending: true })
+      .gte('match_time', new Date(now.getTime() + 30 * 60000).toISOString())
+      .lte('match_time', new Date(now.getTime() + 90 * 60000).toISOString())
+      .order('match_time')
 
-    if (!upcomingMatches || upcomingMatches.length === 0) {
-      return new Response(JSON.stringify({ message: 'Nenhum jogo próximo encontrado.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
+    if (upcoming?.length) {
+      const lines = upcoming.map(m =>
+        `⚽ *${m.team_a}* x *${m.team_b}* — ${toBRT(m.match_time)}\n   _${m.league_name}_`
+      )
+      await sendWA([
+        '🏆 *BOLÃO — Jogos em breve!*', '',
+        'Esses jogos começam em até 1h. Corre fazer seu palpite! 👇', '',
+        ...lines, '',
+        '👉 Faça seu palpite agora:',
+        `${APP_URL}/palpites`,
+      ].join('\n'))
+      sent.push(`upcoming:${upcoming.length}`)
     }
 
-    const matchLines = upcomingMatches.map((m: any) => {
-      const brt = new Date(new Date(m.match_time).getTime() - 3 * 60 * 60 * 1000)
-      const hh = brt.getUTCHours().toString().padStart(2, '0')
-      const mm = brt.getUTCMinutes().toString().padStart(2, '0')
-      return `⚽ *${m.team_a}* x *${m.team_b}* — ${hh}:${mm}\n   _${m.league_name}_`
-    })
+    // ── 2. COMEÇANDO AGORA (5–15 min) ───────────────────────────────────────
+    const { data: starting } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('status', 'pending')
+      .gte('match_time', new Date(now.getTime() + 5 * 60000).toISOString())
+      .lte('match_time', new Date(now.getTime() + 15 * 60000).toISOString())
+      .order('match_time')
 
-    const message = [
-      `🏆 *BOLÃO — Jogos em breve!*`,
-      ``,
-      `Esses jogos começam em até 1h. Corre fazer seu palpite! 👇`,
-      ``,
-      ...matchLines,
-      ``,
-      `👉 Faça seu palpite agora:`,
-      `https://bolaodocrias.vercel.app/palpites`,
-    ].join('\n')
+    for (const m of starting ?? []) {
+      await sendWA([
+        '⏰ *APITO EM MINUTOS!*', '',
+        `*${m.team_a}* x *${m.team_b}*`,
+        `_${m.league_name}_`, '',
+        'Último momento para palpitar! ⚡',
+        `${APP_URL}/palpites`,
+      ].join('\n'))
+    }
+    if (starting?.length) sent.push(`starting:${starting.length}`)
 
-    const wapiRes = await fetch(
-      `https://api.w-api.app/v1/message/send-text?instanceId=${WAPI_INSTANCE_ID}`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${WAPI_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ phone: WHATSAPP_GROUP_ID, message }),
+    // ── 3. RESULTADO (partidas FT não notificadas) ───────────────────────────
+    const { data: finished } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('status', 'FT')
+      .eq('result_notified', false)
+
+    for (const match of finished ?? []) {
+      const { data: preds } = await supabase
+        .from('predictions')
+        .select('guess_a, guess_b, profiles(full_name)')
+        .eq('match_id', match.id)
+
+      const predLines = (preds ?? [])
+        .map(p => {
+          const pts = calcPts(p, match)
+          const icon = pts === 3 ? '🎯' : pts === 1 ? '✅' : '❌'
+          const label = pts === 3 ? '+3 CERTEIRO!' : pts === 1 ? '+1 pt' : '0 pts'
+          return `${icon} *${(p.profiles as any)?.full_name}* → ${p.guess_a}×${p.guess_b} _(${label})_`
+        })
+        .sort()
+
+      await sendWA([
+        '🏁 *RESULTADO FINAL*', '',
+        `*${match.team_a}* ${match.score_a} × ${match.score_b} *${match.team_b}*`,
+        `_${match.league_name}_`, '',
+        '📊 *Palpites do bolão:*',
+        ...(predLines.length ? predLines : ['_Nenhum palpite registrado_']),
+        '',
+        '👉 Ver ranking:',
+        `${APP_URL}/ligas`,
+      ].join('\n'))
+
+      await supabase.from('matches').update({ result_notified: true }).eq('id', match.id)
+      sent.push(`result:${match.team_a}x${match.team_b}`)
+    }
+
+    // ── 4. RANKING DIÁRIO (23h UTC = meia-noite BRT) ─────────────────────────
+    if (now.getUTCHours() === 23) {
+      const { data: members } = await supabase
+        .from('league_members')
+        .select('user_id, total_score, profiles(full_name)')
+
+      const agg: Record<string, { name: string; score: number }> = {}
+      for (const m of members ?? []) {
+        const uid = m.user_id as string
+        const name = (m.profiles as any)?.full_name ?? 'Anônimo'
+        if (!agg[uid]) agg[uid] = { name, score: 0 }
+        agg[uid].score += m.total_score
       }
-    )
 
-    const wapiResult = await wapiRes.json()
+      const ranking = Object.values(agg).sort((a, b) => b.score - a.score).slice(0, 10)
+      const medals = ['👑', '🥈', '🥉']
+      const lines = ranking.map((r, i) =>
+        `${medals[i] ?? `${i + 1}º`} *${r.name}* — ${r.score} pts`
+      )
 
-    return new Response(JSON.stringify({
-      sent: upcomingMatches.length,
-      matches: upcomingMatches.map((m: any) => `${m.team_a} x ${m.team_b}`),
-      wapi: wapiResult,
-    }), {
+      if (lines.length) {
+        await sendWA([
+          '🏆 *RANKING DO BOLÃO — Atualizado!*', '',
+          ...lines, '',
+          '👉 Ver detalhes:',
+          `${APP_URL}/ligas`,
+        ].join('\n'))
+        sent.push('ranking')
+      }
+    }
+
+    return new Response(JSON.stringify({ ok: true, sent }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
