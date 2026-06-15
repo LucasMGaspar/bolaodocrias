@@ -4,10 +4,11 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useRef } from "react"
 import { supabase } from "@/lib/supabase"
-import { Loader2, ChevronLeft, ChevronRight, Calendar, CheckCircle2, Target, Info, ChevronDown } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight, Calendar, CheckCircle2, Target, Info, ChevronDown, Share2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { MatchCard } from "@/components/MatchCard"
+import { ShareCard } from "@/components/ShareCard"
 
 interface Match {
   id: number
@@ -29,6 +30,7 @@ export default function PalpitesPage() {
   const [selectedLeague, setSelectedLeague] = useState<string>("Todas")
   const [activeTab, setActiveTab] = useState<'upcoming' | 'finished'>('upcoming')
   const [showRules, setShowRules] = useState(false)
+  const [shareMatch, setShareMatch] = useState<{ match: Match; pred: any; points: number | null } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -259,6 +261,7 @@ export default function PalpitesPage() {
                     <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
                       {match.league_name}
                     </span>
+                    <div className="flex items-center gap-2">
                     {points !== null && (
                       <div
                         className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter"
@@ -274,6 +277,14 @@ export default function PalpitesPage() {
                         {points === 3 ? "+3 PONTOS (CERTEIRO!)" : points === 1 ? "+1 PONTO (VENCEDOR!)" : "0 PONTOS (ERROU!)"}
                       </div>
                     )}
+                    <button
+                      onClick={() => setShareMatch({ match, pred, points })}
+                      className="flex items-center justify-center h-7 w-7 rounded-full transition-all"
+                      style={{ background: "rgba(255,193,7,0.12)", border: "1px solid rgba(255,193,7,0.25)" }}
+                    >
+                      <Share2 className="h-3 w-3" style={{ color: "#FFC107" }} />
+                    </button>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
@@ -331,6 +342,15 @@ export default function PalpitesPage() {
             )
           })}
         </AnimatePresence>
+
+        {shareMatch && (
+          <ShareCard
+            match={shareMatch.match}
+            prediction={shareMatch.pred}
+            points={shareMatch.points}
+            onClose={() => setShareMatch(null)}
+          />
+        )}
 
         {finalMatches.length === 0 && (
           <div
