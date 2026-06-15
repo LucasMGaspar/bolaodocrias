@@ -48,6 +48,20 @@ serve(async (req) => {
     const now = new Date()
     const sent: string[] = []
 
+    // ── 0. BADGE (conquista desbloqueada) ────────────────────────────────────
+    const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {}
+    if (body.action === 'badge') {
+      const { user_name, badge_name, badge_icon, badge_desc } = body
+      await sendWA([
+        `${badge_icon} *NOVA CONQUISTA!*`, ``,
+        `*${user_name}* desbloqueou *${badge_name}*`,
+        `_${badge_desc}_`,
+      ].join('\n'))
+      return new Response(JSON.stringify({ ok: true, sent: ['badge'] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+      })
+    }
+
     // ── 1. PRÓXIMOS (30–90 min) ──────────────────────────────────────────────
     const { data: upcoming } = await supabase
       .from('matches')
@@ -122,20 +136,26 @@ serve(async (req) => {
 
       if (!missing.length) continue
 
-      const phones = missing.map((m: any) => m.phone).filter(Boolean)
-      const nameLines = missing.map((m: any) =>
-        m.phone ? `@${m.phone}` : `• ${m.name}`
-      )
-
-      await sendWA([
-        `⚠️ *SEM PALPITE!*`, ``,
-        `*${match.team_a}* x *${match.team_b}* começa em 1h!`,
-        `_${match.league_name}_`, ``,
-        `Ainda não palpitaram:`,
-        ...nameLines, ``,
-        `👉 Corre palpitar:`,
-        `${APP_URL}/palpites`,
-      ].join('\n'), phones)
+      for (const m of missing) {
+        if (!m.phone) continue
+        await fetch(
+          `https://api.w-api.app/v1/message/send-text?instanceId=${WAPI_INSTANCE_ID}`,
+          {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${WAPI_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phone: m.phone,
+              message: [
+                `⚠️ *SEM PALPITE!*`, ``,
+                `*${match.team_a}* x *${match.team_b}* começa em 1h!`,
+                `_${match.league_name}_`, ``,
+                `👉 Corre palpitar:`,
+                `${APP_URL}/palpites`,
+              ].join('\n'),
+            }),
+          }
+        )
+      }
       sent.push(`reminder:${match.team_a}x${match.team_b}:${missing.length}`)
     }
 
