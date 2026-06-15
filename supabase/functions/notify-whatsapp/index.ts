@@ -32,12 +32,17 @@ function toBRT(utcStr: string): string {
 }
 
 function calcPts(pred: any, match: any): number {
-  if (pred.guess_a === match.score_a && pred.guess_b === match.score_b) return 3
-  const pw = Math.sign(pred.guess_a - pred.guess_b)
-  const rw = Math.sign((match.score_a ?? 0) - (match.score_b ?? 0))
-  if (pw === rw && rw !== 0) return 1
-  if (pw === 0 && rw === 0) return 1
-  return 0
+  let base = 0
+  if (pred.guess_a === match.score_a && pred.guess_b === match.score_b) {
+    base = 3
+  } else {
+    const pw = Math.sign(pred.guess_a - pred.guess_b)
+    const rw = Math.sign((match.score_a ?? 0) - (match.score_b ?? 0))
+    if (pw === rw && rw !== 0) base = 1
+    else if (pw === 0 && rw === 0) base = 1
+  }
+  if (pred.wildcard) return base === 0 ? -1 : base * 2
+  return base
 }
 
 serve(async (req) => {
@@ -169,15 +174,16 @@ serve(async (req) => {
     for (const match of finished ?? []) {
       const { data: preds } = await supabase
         .from('predictions')
-        .select('guess_a, guess_b, profiles(full_name)')
+        .select('guess_a, guess_b, wildcard, profiles(full_name)')
         .eq('match_id', match.id)
 
       const predLines = (preds ?? [])
         .map(p => {
           const pts = calcPts(p, match)
-          const icon = pts === 3 ? '🎯' : pts === 1 ? '✅' : '❌'
-          const label = pts === 3 ? '+3 CERTEIRO!' : pts === 1 ? '+1 pt' : '0 pts'
-          return `${icon} *${(p.profiles as any)?.full_name}* → ${p.guess_a}×${p.guess_b} _(${label})_`
+          const wcTag = p.wildcard ? ' ⚡' : ''
+          const icon = pts >= 3 ? '🎯' : pts >= 1 ? '✅' : '❌'
+          const label = pts === 6 ? '+6 DOBRO CERTEIRO!' : pts === 3 ? '+3 CERTEIRO!' : pts === 2 ? '+2 DOBRO!' : pts === 1 ? '+1 pt' : pts === -1 ? '-1 (wildcard errado)' : '0 pts'
+          return `${icon} *${(p.profiles as any)?.full_name}*${wcTag} → ${p.guess_a}×${p.guess_b} _(${label})_`
         })
         .sort()
 
