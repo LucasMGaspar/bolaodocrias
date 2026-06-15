@@ -54,7 +54,8 @@ serve(async (req) => {
       ``,
       ...matchLines,
       ``,
-      `👉 Acesse o app e registre seus palpites antes do apito inicial!`,
+      `👉 Faça seu palpite agora:`,
+      `https://bolaodocrias.vercel.app/palpites`,
     ].join('\n')
 
     const wapiRes = await fetch(
