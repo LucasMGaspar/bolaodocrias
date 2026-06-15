@@ -193,11 +193,15 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
     }
   }
 
-  const todayUTC = new Date().toISOString().slice(0, 10)
+  const toBRTDate = (iso: string) => {
+    const brt = new Date(new Date(iso).getTime() - 3 * 60 * 60 * 1000)
+    return brt.toISOString().slice(0, 10)
+  }
+  const todayBRT = toBRTDate(new Date().toISOString())
   const wildcardUsedMatchId = Object.entries(predictions).find(([mId, p]) => {
     if (!p?.wildcard) return false
     const m = matches.find(match => match.id === Number(mId))
-    return m?.match_time?.slice(0, 10) === todayUTC
+    return m?.match_time ? toBRTDate(m.match_time) === todayBRT : false
   })?.[0]
 
   const calcPoints = (pred: any, match: any): number => {
