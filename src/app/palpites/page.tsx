@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useRef } from "react"
 import { supabase } from "@/lib/supabase"
-import { Loader2, ChevronLeft, ChevronRight, Calendar, CheckCircle2, Target, Info, ChevronDown, Share2 } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight, Calendar, CheckCircle2, Target, Info, Share2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { MatchCard } from "@/components/MatchCard"
@@ -29,7 +29,6 @@ export default function PalpitesPage() {
   const [loading, setLoading] = useState(true)
   const [selectedLeague, setSelectedLeague] = useState<string>("Todas")
   const [activeTab, setActiveTab] = useState<'upcoming' | 'finished'>('upcoming')
-  const [showRules, setShowRules] = useState(false)
   const [shareMatch, setShareMatch] = useState<{ match: Match; pred: any; points: number | null } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -149,50 +148,32 @@ export default function PalpitesPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black">Palpites</h1>
-          <p className="text-sm text-muted-foreground">Mostre quem entende de futebol</p>
-        </div>
-        <button
-          onClick={() => setShowRules(v => !v)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-          style={{ background: "rgba(255,193,7,0.1)", border: "1px solid rgba(255,193,7,0.2)", color: "#FFC107" }}
-        >
-          <Info className="h-3 w-3" />
-          Regras
-          <ChevronDown className={cn("h-3 w-3 transition-transform", showRules && "rotate-180")} />
-        </button>
+      <header>
+        <h1 className="text-2xl font-black">Palpites</h1>
+        <p className="text-sm text-muted-foreground">Mostre quem entende de futebol</p>
       </header>
 
-      <AnimatePresence>
-        {showRules && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="rounded-2xl p-4 space-y-2 text-xs" style={{ background: "rgba(255,193,7,0.06)", border: "1px solid rgba(255,193,7,0.15)" }}>
-              <p className="font-black uppercase tracking-widest text-[10px] mb-3" style={{ color: "#FFC107" }}>Como funciona a pontuação</p>
-              {[
-                { icon: "🎯", pts: "+3", desc: "Placar exato (ex: chutou 2×1, deu 2×1)" },
-                { icon: "✅", pts: "+1", desc: "Acertou o vencedor (ex: chutou 2×1, deu 3×0)" },
-                { icon: "🤝", pts: "+1", desc: "Acertou que seria empate, mas errou o placar (ex: chutou 1×1, deu 2×2)" },
-                { icon: "❌", pts: "0", desc: "Errou o resultado" },
-                { icon: "⚡", pts: "×2", desc: "Dobro ou Nada: dobra os pontos se acertar, -1 se errar (1× por dia)" },
-              ].map((r, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <span className="text-base">{r.icon}</span>
-                  <span className="font-black w-6 shrink-0" style={{ color: "#FFC107" }}>{r.pts}</span>
-                  <span className="text-muted-foreground">{r.desc}</span>
-                </div>
-              ))}
-              <p className="text-[9px] text-muted-foreground pt-1 border-t border-white/5">* Palpites ficam bloqueados após o início do jogo</p>
+      {/* Regras de pontuação — sempre visível */}
+      <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,193,7,0.25)" }}>
+        <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: "rgba(255,193,7,0.12)" }}>
+          <Info className="h-3.5 w-3.5" style={{ color: "#FFC107" }} />
+          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#FFC107" }}>Como pontuar</span>
+        </div>
+        <div className="divide-y" style={{ divideColor: "rgba(255,255,255,0.04)" }}>
+          {[
+            { icon: "🎯", pts: "+3", desc: "Placar exato", color: "#4ade80", bg: "rgba(34,197,94,0.07)" },
+            { icon: "✅", pts: "+1", desc: "Acertou o vencedor ou empate", color: "#60a5fa", bg: "rgba(59,130,246,0.07)" },
+            { icon: "❌", pts: "0",  desc: "Errou o resultado", color: "#f87171", bg: "rgba(239,68,68,0.05)" },
+            { icon: "⚡", pts: "×2", desc: "Dobro ou Nada — dobra os pts, -1 se errar (1× por dia)", color: "#FF8F00", bg: "rgba(255,140,0,0.07)" },
+          ].map((r, i) => (
+            <div key={i} className="flex items-center gap-3 px-4 py-2.5" style={{ background: r.bg }}>
+              <span className="text-base w-5 text-center">{r.icon}</span>
+              <span className="text-xs font-black w-7 shrink-0" style={{ color: r.color }}>{r.pts}</span>
+              <span className="text-xs text-muted-foreground">{r.desc}</span>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          ))}
+        </div>
+      </div>
 
       {/* Tabs */}
       <div
