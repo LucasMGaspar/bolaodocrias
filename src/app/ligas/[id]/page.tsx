@@ -164,17 +164,41 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
   const handlePredict = async (matchId: number, scoreA: number, scoreB: number) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+    const existing = predictions[matchId]
     const { error } = await supabase.from('predictions').upsert({
       user_id: user.id,
       match_id: matchId,
       guess_a: scoreA,
       guess_b: scoreB,
+      wildcard: existing?.wildcard ?? false,
     })
     if (!error) {
-      setPredictions(prev => ({ ...prev, [matchId]: { match_id: matchId, score_a: scoreA, score_b: scoreB } }))
+      setPredictions(prev => ({ ...prev, [matchId]: { ...prev[matchId], match_id: matchId, score_a: scoreA, score_b: scoreB } }))
       fetchInitialData()
     }
   }
+
+  const handleWildcard = async (matchId: number) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const pred = predictions[matchId]
+    if (!pred) return
+    const newWildcard = !pred.wildcard
+    const { error } = await supabase.from('predictions')
+      .update({ wildcard: newWildcard })
+      .eq('user_id', user.id)
+      .eq('match_id', matchId)
+    if (!error) {
+      setPredictions(prev => ({ ...prev, [matchId]: { ...prev[matchId], wildcard: newWildcard } }))
+    }
+  }
+
+  const todayUTC = new Date().toISOString().slice(0, 10)
+  const wildcardUsedMatchId = Object.entries(predictions).find(([mId, p]) => {
+    if (!p?.wildcard) return false
+    const m = matches.find(match => match.id === Number(mId))
+    return m?.match_time?.slice(0, 10) === todayUTC
+  })?.[0]
 
   const calcPoints = (pred: any, match: any): number => {
     let base = 0
@@ -322,7 +346,9 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
                   match={match}
                   prediction={predictions[match.id]}
                   othersPredictions={allPredictions.filter(p => p.match_id === match.id && p.user_id !== currentUserId)}
+                  wildcardAvailable={!wildcardUsedMatchId || wildcardUsedMatchId === String(match.id)}
                   onPredict={handlePredict}
+                  onToggleWildcard={handleWildcard}
                 />
               ))}
             </motion.div>
