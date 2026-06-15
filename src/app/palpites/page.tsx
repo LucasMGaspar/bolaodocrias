@@ -102,6 +102,7 @@ export default function PalpitesPage() {
     const predictedWinner = Math.sign(pred.score_a - pred.score_b)
     const actualWinner = Math.sign((match.score_a ?? 0) - (match.score_b ?? 0))
     if (predictedWinner === actualWinner && actualWinner !== 0) return 1
+    if (predictedWinner === 0 && actualWinner === 0) return 1
     return 0
   }
 

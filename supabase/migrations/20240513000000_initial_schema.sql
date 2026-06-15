@@ -116,6 +116,23 @@ BEGIN
             OR jsonb_array_length(l.settings->'leagues') = 0
             OR l.settings->'leagues' ? NEW.league_name
           );
+
+        -- 1 ponto: acertou empate mas errou o placar
+        UPDATE public.league_members lm
+        SET total_score = total_score + 1
+        FROM public.predictions p,
+             public.leagues l
+        WHERE p.match_id = NEW.id
+          AND p.user_id = lm.user_id
+          AND l.id = lm.league_id
+          AND NEW.score_a = NEW.score_b
+          AND p.guess_a = p.guess_b
+          AND NOT (p.guess_a = NEW.score_a AND p.guess_b = NEW.score_b)
+          AND (
+            l.settings->'leagues' IS NULL
+            OR jsonb_array_length(l.settings->'leagues') = 0
+            OR l.settings->'leagues' ? NEW.league_name
+          );
     END IF;
     RETURN NEW;
 END;
