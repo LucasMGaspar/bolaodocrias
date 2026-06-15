@@ -56,8 +56,8 @@ serve(async (req) => {
       totalSynced += wcUpdates.length
     }
 
-    // --- 2. api-sports.io: outros jogos de ontem e hoje (live scores) ---
-    for (let i = 1; i >= 0; i--) {
+    // --- 2. api-sports.io: outros jogos de ontem, hoje e amanhã (captura jogos noturnos BRT) ---
+    for (let i = 1; i >= -1; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
       const date = d.toISOString().split('T')[0]

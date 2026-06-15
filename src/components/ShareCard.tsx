@@ -18,6 +18,11 @@ interface ShareCardProps {
   onClose: () => void
 }
 
+function proxyUrl(src: string) {
+  if (!src) return src
+  return `/api/proxy-image?url=${encodeURIComponent(src)}`
+}
+
 function TeamLogo({ src, name }: { src: string; name: string }) {
   const [failed, setFailed] = useState(false)
   if (failed || !src) {
@@ -29,8 +34,8 @@ function TeamLogo({ src, name }: { src: string; name: string }) {
     )
   }
   return (
-    <img src={src} alt={name} className="w-16 h-16 object-contain drop-shadow-lg"
-      onError={() => setFailed(true)} crossOrigin="anonymous" />
+    <img src={proxyUrl(src)} alt={name} className="w-16 h-16 object-contain drop-shadow-lg"
+      onError={() => setFailed(true)} />
   )
 }
 
