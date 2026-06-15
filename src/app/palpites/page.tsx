@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useRef } from "react"
 import { supabase } from "@/lib/supabase"
-import { Loader2, ChevronLeft, ChevronRight, Calendar, CheckCircle2, Target } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight, Calendar, CheckCircle2, Target, Info, ChevronDown } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { MatchCard } from "@/components/MatchCard"
@@ -28,6 +28,7 @@ export default function PalpitesPage() {
   const [loading, setLoading] = useState(true)
   const [selectedLeague, setSelectedLeague] = useState<string>("Todas")
   const [activeTab, setActiveTab] = useState<'upcoming' | 'finished'>('upcoming')
+  const [showRules, setShowRules] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -119,7 +120,44 @@ export default function PalpitesPage() {
           <h1 className="text-2xl font-black">Palpites</h1>
           <p className="text-sm text-muted-foreground">Mostre quem entende de futebol</p>
         </div>
+        <button
+          onClick={() => setShowRules(v => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+          style={{ background: "rgba(255,193,7,0.1)", border: "1px solid rgba(255,193,7,0.2)", color: "#FFC107" }}
+        >
+          <Info className="h-3 w-3" />
+          Regras
+          <ChevronDown className={cn("h-3 w-3 transition-transform", showRules && "rotate-180")} />
+        </button>
       </header>
+
+      <AnimatePresence>
+        {showRules && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-2xl p-4 space-y-2 text-xs" style={{ background: "rgba(255,193,7,0.06)", border: "1px solid rgba(255,193,7,0.15)" }}>
+              <p className="font-black uppercase tracking-widest text-[10px] mb-3" style={{ color: "#FFC107" }}>Como funciona a pontuação</p>
+              {[
+                { icon: "🎯", pts: "+3", desc: "Placar exato (ex: chutou 2×1, deu 2×1)" },
+                { icon: "✅", pts: "+1", desc: "Acertou o vencedor (ex: chutou 2×1, deu 3×0)" },
+                { icon: "🤝", pts: "+1", desc: "Acertou que seria empate, mas errou o placar (ex: chutou 1×1, deu 2×2)" },
+                { icon: "❌", pts: "0", desc: "Errou o resultado" },
+              ].map((r, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="text-base">{r.icon}</span>
+                  <span className="font-black w-6 shrink-0" style={{ color: "#FFC107" }}>{r.pts}</span>
+                  <span className="text-muted-foreground">{r.desc}</span>
+                </div>
+              ))}
+              <p className="text-[9px] text-muted-foreground pt-1 border-t border-white/5">* Palpites ficam bloqueados após o início do jogo</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Tabs */}
       <div
