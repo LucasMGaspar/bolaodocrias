@@ -4,10 +4,11 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, use, useRef } from "react"
 import { supabase } from "@/lib/supabase"
-import { Trophy, Send, Users, Calendar, MessageSquare, Loader2, CheckCircle2, Star } from "lucide-react"
+import { Trophy, Send, Users, Calendar, MessageSquare, Loader2, CheckCircle2, Star, Share2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { MatchCard } from "@/components/MatchCard"
+import { ShareCard } from "@/components/ShareCard"
 
 interface Member {
   user_id: string
@@ -45,6 +46,7 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
   const [loading, setLoading] = useState(true)
   const [sendingMessage, setSendingMessage] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [shareMatch, setShareMatch] = useState<{ match: any; pred: any; points: number | null } | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -172,6 +174,20 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
       setPredictions(prev => ({ ...prev, [matchId]: { match_id: matchId, score_a: scoreA, score_b: scoreB } }))
       fetchInitialData()
     }
+  }
+
+  const calcPoints = (pred: any, match: any): number => {
+    let base = 0
+    if (pred.guess_a === match.score_a && pred.guess_b === match.score_b) {
+      base = 3
+    } else {
+      const pw = Math.sign(pred.guess_a - pred.guess_b)
+      const rw = Math.sign(match.score_a - match.score_b)
+      if (pw === rw && rw !== 0) base = 1
+      else if (pw === 0 && rw === 0) base = 1
+    }
+    if (pred.wildcard) return base === 0 ? -1 : base * 2
+    return base
   }
 
   const medalStyle = (index: number) => {
@@ -330,11 +346,27 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
                   >
                     <div className="flex justify-between items-center">
                       <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">{match.league_name}</span>
-                      <div
-                        className="px-2 py-1 rounded-lg text-[9px] font-bold"
-                        style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,193,7,0.6)" }}
-                      >
-                        {new Date(match.match_time).toLocaleDateString('pt-BR')}
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="px-2 py-1 rounded-lg text-[9px] font-bold"
+                          style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,193,7,0.6)" }}
+                        >
+                          {new Date(match.match_time).toLocaleDateString('pt-BR')}
+                        </div>
+                        {(() => {
+                          const myPred = matchPreds.find(p => p.user_id === currentUserId)
+                          if (!myPred) return null
+                          const pts = calcPoints(myPred, match)
+                          return (
+                            <button
+                              onClick={() => setShareMatch({ match, pred: { score_a: myPred.guess_a, score_b: myPred.guess_b, wildcard: myPred.wildcard }, points: pts })}
+                              className="flex items-center justify-center h-7 w-7 rounded-full transition-all"
+                              style={{ background: "rgba(255,193,7,0.12)", border: "1px solid rgba(255,193,7,0.25)" }}
+                            >
+                              <Share2 className="h-3 w-3" style={{ color: "#FFC107" }} />
+                            </button>
+                          )
+                        })()}
                       </div>
                     </div>
 
@@ -369,14 +401,13 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
                       </p>
                       <div className="grid gap-2">
                         {matchPreds.map(p => {
-                          const isExact = p.guess_a === match.score_a && p.guess_b === match.score_b
-                          const isWinner = Math.sign(p.guess_a - p.guess_b) === Math.sign(match.score_a - match.score_b) && match.score_a !== match.score_b
-                          const points = isExact ? 3 : isWinner ? 1 : 0
+                          const points = calcPoints(p, match)
+                          const isGood = points > 0
                           return (
                             <div
                               key={p.user_id}
                               className="flex items-center justify-between p-2 px-4 rounded-xl"
-                              style={isExact ? {
+                              style={points === 3 || points === 6 ? {
                                 background: "rgba(255,193,7,0.08)",
                                 border: "1px solid rgba(255,193,7,0.25)",
                               } : {
@@ -392,20 +423,23 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
                                 <span className={cn("text-[10px] font-bold", p.user_id === currentUserId && "text-yellow-400")}>
                                   {p.profiles?.username || p.profiles?.full_name || 'Amigo'}
                                 </span>
+                                {p.wildcard && <span className="text-[9px]">⚡</span>}
                               </div>
                               <div className="flex items-center gap-3">
                                 <span className="text-xs font-black">{p.guess_a} x {p.guess_b}</span>
                                 <span
                                   className="text-[10px] font-black px-2 py-0.5 rounded-full"
                                   style={
-                                    points === 3
+                                    points >= 3
                                       ? { background: "rgba(34,197,94,0.2)", color: "#4ade80" }
-                                      : points === 1
+                                      : points >= 1
                                       ? { background: "rgba(59,130,246,0.2)", color: "#60a5fa" }
+                                      : points < 0
+                                      ? { background: "rgba(239,68,68,0.15)", color: "#f87171" }
                                       : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }
                                   }
                                 >
-                                  {points} PTS
+                                  {points > 0 ? `+${points}` : points} PTS
                                 </span>
                               </div>
                             </div>
@@ -520,6 +554,15 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
 
         </AnimatePresence>
       </div>
+
+      {shareMatch && (
+        <ShareCard
+          match={shareMatch.match}
+          prediction={shareMatch.pred}
+          points={shareMatch.points}
+          onClose={() => setShareMatch(null)}
+        />
+      )}
     </div>
   )
 }
