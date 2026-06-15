@@ -4,10 +4,11 @@ export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, useRef } from "react"
 import { supabase } from "@/lib/supabase"
-import { Loader2, ChevronLeft, ChevronRight, Calendar, CheckCircle2, Target, Info, ChevronDown } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight, Calendar, CheckCircle2, Target, Info, ChevronDown, Share2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { MatchCard } from "@/components/MatchCard"
+import { ShareCard } from "@/components/ShareCard"
 
 interface Match {
   id: number
@@ -29,6 +30,7 @@ export default function PalpitesPage() {
   const [selectedLeague, setSelectedLeague] = useState<string>("Todas")
   const [activeTab, setActiveTab] = useState<'upcoming' | 'finished'>('upcoming')
   const [showRules, setShowRules] = useState(false)
+  const [shareMatch, setShareMatch] = useState<{ match: Match; pred: any; points: number | null } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -73,16 +75,35 @@ export default function PalpitesPage() {
       alert("Você precisa estar logado!")
       return
     }
+    const existing = predictions[matchId]
     const { error } = await supabase.from('predictions').upsert({
       user_id: user.id,
       match_id: matchId,
       guess_a: scoreA,
       guess_b: scoreB,
+      wildcard: existing?.wildcard ?? false,
     })
     if (error) {
       alert("Erro ao salvar: " + error.message)
     } else {
-      setPredictions(prev => ({ ...prev, [matchId]: { match_id: matchId, score_a: scoreA, score_b: scoreB } }))
+      setPredictions(prev => ({ ...prev, [matchId]: { ...prev[matchId], match_id: matchId, score_a: scoreA, score_b: scoreB } }))
+    }
+  }
+
+  const handleWildcard = async (matchId: number) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const pred = predictions[matchId]
+    if (!pred) return
+
+    const newWildcard = !pred.wildcard
+    const { error } = await supabase.from('predictions')
+      .update({ wildcard: newWildcard })
+      .eq('user_id', user.id)
+      .eq('match_id', matchId)
+
+    if (!error) {
+      setPredictions(prev => ({ ...prev, [matchId]: { ...prev[matchId], wildcard: newWildcard } }))
     }
   }
 
@@ -99,13 +120,26 @@ export default function PalpitesPage() {
 
   const calculatePoints = (match: Match, pred: any) => {
     if (!pred || match.status !== 'FT') return null
-    if (pred.score_a === match.score_a && pred.score_b === match.score_b) return 3
-    const predictedWinner = Math.sign(pred.score_a - pred.score_b)
-    const actualWinner = Math.sign((match.score_a ?? 0) - (match.score_b ?? 0))
-    if (predictedWinner === actualWinner && actualWinner !== 0) return 1
-    if (predictedWinner === 0 && actualWinner === 0) return 1
-    return 0
+    let base = 0
+    if (pred.score_a === match.score_a && pred.score_b === match.score_b) {
+      base = 3
+    } else {
+      const predictedWinner = Math.sign(pred.score_a - pred.score_b)
+      const actualWinner = Math.sign((match.score_a ?? 0) - (match.score_b ?? 0))
+      if (predictedWinner === actualWinner && actualWinner !== 0) base = 1
+      else if (predictedWinner === 0 && actualWinner === 0) base = 1
+    }
+    if (pred.wildcard) return base === 0 ? -1 : base * 2
+    return base
   }
+
+  const todayUTC = new Date().toISOString().slice(0, 10)
+  const wildcardUsedMatchId = Object.entries(predictions).find(([mId, p]) => {
+    if (!p?.wildcard) return false
+    const m = matches.find(match => match.id === Number(mId))
+    return m?.match_time?.slice(0, 10) === todayUTC
+  })?.[0]
+  const wildcardUsedToday = wildcardUsedMatchId !== undefined
 
   if (loading) return (
     <div className="p-8 text-center">
@@ -146,6 +180,7 @@ export default function PalpitesPage() {
                 { icon: "✅", pts: "+1", desc: "Acertou o vencedor (ex: chutou 2×1, deu 3×0)" },
                 { icon: "🤝", pts: "+1", desc: "Acertou que seria empate, mas errou o placar (ex: chutou 1×1, deu 2×2)" },
                 { icon: "❌", pts: "0", desc: "Errou o resultado" },
+                { icon: "⚡", pts: "×2", desc: "Dobro ou Nada: dobra os pontos se acertar, -1 se errar (1× por dia)" },
               ].map((r, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <span className="text-base">{r.icon}</span>
@@ -259,21 +294,31 @@ export default function PalpitesPage() {
                     <span className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">
                       {match.league_name}
                     </span>
+                    <div className="flex items-center gap-2">
                     {points !== null && (
                       <div
                         className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter"
                         style={
-                          points === 3
+                          points >= 3
                             ? { background: "rgba(34,197,94,0.15)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)" }
-                            : points === 1
+                            : points >= 1
                             ? { background: "rgba(59,130,246,0.15)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.3)" }
                             : { background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)" }
                         }
                       >
                         <Target className="h-3 w-3" />
-                        {points === 3 ? "+3 PONTOS (CERTEIRO!)" : points === 1 ? "+1 PONTO (VENCEDOR!)" : "0 PONTOS (ERROU!)"}
+                        {pred?.wildcard && <span>⚡</span>}
+                        {points === 6 ? "+6 DOBRO CERTEIRO!" : points === 3 ? "+3 CERTEIRO!" : points === 2 ? "+2 DOBRO!" : points === 1 ? "+1 VENCEDOR!" : points === -1 ? "-1 WILDCARD ERRADO" : "0 ERROU!"}
                       </div>
                     )}
+                    <button
+                      onClick={() => setShareMatch({ match, pred, points })}
+                      className="flex items-center justify-center h-7 w-7 rounded-full transition-all"
+                      style={{ background: "rgba(255,193,7,0.12)", border: "1px solid rgba(255,193,7,0.25)" }}
+                    >
+                      <Share2 className="h-3 w-3" style={{ color: "#FFC107" }} />
+                    </button>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
@@ -326,11 +371,22 @@ export default function PalpitesPage() {
                 key={match.id}
                 match={match}
                 prediction={pred}
+                wildcardAvailable={!wildcardUsedToday || wildcardUsedMatchId === String(match.id)}
                 onPredict={handlePredict}
+                onToggleWildcard={handleWildcard}
               />
             )
           })}
         </AnimatePresence>
+
+        {shareMatch && (
+          <ShareCard
+            match={shareMatch.match}
+            prediction={shareMatch.pred}
+            points={shareMatch.points}
+            onClose={() => setShareMatch(null)}
+          />
+        )}
 
         {finalMatches.length === 0 && (
           <div

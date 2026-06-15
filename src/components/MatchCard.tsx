@@ -9,13 +9,17 @@ interface MatchCardProps {
   match: any
   prediction: any
   othersPredictions?: any[]
+  wildcardAvailable?: boolean
   onPredict: (match_id: number, score_a: number, score_b: number) => Promise<void>
+  onToggleWildcard?: (match_id: number) => Promise<void>
 }
 
-export function MatchCard({ match, prediction, othersPredictions = [], onPredict }: MatchCardProps) {
+export function MatchCard({ match, prediction, othersPredictions = [], wildcardAvailable = false, onPredict, onToggleWildcard }: MatchCardProps) {
   const [saving, setSaving] = useState(false)
+  const [wildcardSaving, setWildcardSaving] = useState(false)
   const [showOthers, setShowOthers] = useState(false)
   const isExpired = new Date(match.match_time) < new Date()
+  const wildcardActive = !!prediction?.wildcard
 
   const [localA, setLocalA] = useState(prediction?.score_a?.toString() ?? "0")
   const [localB, setLocalB] = useState(prediction?.score_b?.toString() ?? "0")
@@ -33,6 +37,13 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
     setSaving(true)
     await onPredict(match.id, sA, sB)
     setSaving(false)
+  }
+
+  const handleWildcardToggle = async () => {
+    if (!onToggleWildcard || !prediction || isExpired) return
+    setWildcardSaving(true)
+    await onToggleWildcard(match.id)
+    setWildcardSaving(false)
   }
 
   const hasChanged =
@@ -160,33 +171,81 @@ export function MatchCard({ match, prediction, othersPredictions = [], onPredict
           </div>
 
           {!isExpired && (
-            <button
-              onClick={() => handleScoreChange(localA, localB)}
-              disabled={saving || !hasChanged}
-              className={cn(
-                "px-5 py-2 text-[10px] font-black uppercase rounded-xl transition-all flex items-center gap-2",
-                hasChanged && !saving
-                  ? "scale-105"
-                  : "opacity-40 cursor-not-allowed"
+            <div className="flex flex-col items-center gap-2">
+              <button
+                onClick={() => handleScoreChange(localA, localB)}
+                disabled={saving || !hasChanged}
+                className={cn(
+                  "px-5 py-2 text-[10px] font-black uppercase rounded-xl transition-all flex items-center gap-2",
+                  hasChanged && !saving
+                    ? "scale-105"
+                    : "opacity-40 cursor-not-allowed"
+                )}
+                style={
+                  hasChanged && !saving
+                    ? {
+                        background: "linear-gradient(135deg, #FFC107 0%, #FF8F00 100%)",
+                        color: "#0a1f0d",
+                        boxShadow: "0 4px 16px rgba(255,193,7,0.35)",
+                      }
+                    : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }
+                }
+              >
+                {saving ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : prediction ? (
+                  "Atualizar"
+                ) : (
+                  "Salvar Palpite"
+                )}
+              </button>
+
+              {prediction && onToggleWildcard && (
+                <button
+                  onClick={handleWildcardToggle}
+                  disabled={wildcardSaving || (!wildcardActive && !wildcardAvailable)}
+                  title={
+                    wildcardActive
+                      ? "Desativar Dobro ou Nada"
+                      : wildcardAvailable
+                      ? "Ativar Dobro ou Nada neste jogo"
+                      : "Wildcard já usado hoje"
+                  }
+                  className="px-4 py-1.5 text-[9px] font-black uppercase rounded-xl transition-all flex items-center gap-1.5"
+                  style={
+                    wildcardActive
+                      ? {
+                          background: "linear-gradient(135deg, rgba(255,80,0,0.25), rgba(255,140,0,0.2))",
+                          border: "1px solid rgba(255,120,0,0.5)",
+                          color: "#FF8F00",
+                          boxShadow: "0 0 10px rgba(255,120,0,0.2)",
+                        }
+                      : wildcardAvailable
+                      ? {
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px dashed rgba(255,193,7,0.3)",
+                          color: "rgba(255,193,7,0.6)",
+                        }
+                      : {
+                          background: "rgba(255,255,255,0.03)",
+                          border: "1px dashed rgba(255,255,255,0.1)",
+                          color: "rgba(255,255,255,0.2)",
+                        }
+                  }
+                >
+                  {wildcardSaving ? (
+                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                  ) : (
+                    <span>⚡</span>
+                  )}
+                  {wildcardActive
+                    ? "DOBRO OU NADA ATIVO"
+                    : wildcardAvailable
+                    ? "DOBRO OU NADA"
+                    : "WILDCARD USADO HOJE"}
+                </button>
               )}
-              style={
-                hasChanged && !saving
-                  ? {
-                      background: "linear-gradient(135deg, #FFC107 0%, #FF8F00 100%)",
-                      color: "#0a1f0d",
-                      boxShadow: "0 4px 16px rgba(255,193,7,0.35)",
-                    }
-                  : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }
-              }
-            >
-              {saving ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : prediction ? (
-                "Atualizar"
-              ) : (
-                "Salvar Palpite"
-              )}
-            </button>
+            </div>
           )}
         </div>
 
