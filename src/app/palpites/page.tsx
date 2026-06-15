@@ -159,7 +159,7 @@ export default function PalpitesPage() {
           <Info className="h-3.5 w-3.5" style={{ color: "#FFC107" }} />
           <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: "#FFC107" }}>Como pontuar</span>
         </div>
-        <div className="divide-y" style={{ divideColor: "rgba(255,255,255,0.04)" }}>
+        <div className="divide-y divide-white/5">
           {[
             { icon: "🎯", pts: "+3", desc: "Placar exato", color: "#4ade80", bg: "rgba(34,197,94,0.07)" },
             { icon: "✅", pts: "+1", desc: "Acertou o vencedor ou empate", color: "#60a5fa", bg: "rgba(59,130,246,0.07)" },
