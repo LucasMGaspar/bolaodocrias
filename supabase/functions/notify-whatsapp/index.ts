@@ -13,13 +13,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-async function sendWA(message: string) {
+async function sendWA(message: string, mentions?: string[]) {
+  const body: any = { phone: WHATSAPP_GROUP_ID, message }
+  if (mentions?.length) body.mentions = mentions.map(p => `${p}@c.us`)
   await fetch(
     `https://api.w-api.app/v1/message/send-text?instanceId=${WAPI_INSTANCE_ID}`,
     {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${WAPI_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: WHATSAPP_GROUP_ID, message }),
+      body: JSON.stringify(body),
     }
   )
 }
@@ -89,7 +91,55 @@ serve(async (req) => {
     }
     if (starting?.length) sent.push(`starting:${starting.length}`)
 
-    // ── 3. RESULTADO (partidas FT não notificadas) ───────────────────────────
+    // ── 3. LEMBRETE (quem não palpitou, 60–120 min antes) ───────────────────
+    const { data: reminderMatches } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('status', 'pending')
+      .gte('match_time', new Date(now.getTime() + 60 * 60000).toISOString())
+      .lte('match_time', new Date(now.getTime() + 120 * 60000).toISOString())
+      .order('match_time')
+
+    for (const match of reminderMatches ?? []) {
+      const { data: allMembers } = await supabase
+        .from('league_members')
+        .select('user_id, profiles(full_name, whatsapp_phone)')
+
+      const { data: predicted } = await supabase
+        .from('predictions')
+        .select('user_id')
+        .eq('match_id', match.id)
+
+      const predictedIds = new Set((predicted ?? []).map((p: any) => p.user_id))
+      const seen = new Set<string>()
+      const missing = (allMembers ?? [])
+        .filter((m: any) => !predictedIds.has(m.user_id))
+        .filter((m: any) => { const ok = !seen.has(m.user_id); seen.add(m.user_id); return ok })
+        .map((m: any) => ({
+          name: (m.profiles as any)?.full_name ?? 'Anônimo',
+          phone: (m.profiles as any)?.whatsapp_phone ?? null,
+        }))
+
+      if (!missing.length) continue
+
+      const phones = missing.map((m: any) => m.phone).filter(Boolean)
+      const nameLines = missing.map((m: any) =>
+        m.phone ? `@${m.phone}` : `• ${m.name}`
+      )
+
+      await sendWA([
+        `⚠️ *SEM PALPITE!*`, ``,
+        `*${match.team_a}* x *${match.team_b}* começa em 1h!`,
+        `_${match.league_name}_`, ``,
+        `Ainda não palpitaram:`,
+        ...nameLines, ``,
+        `👉 Corre palpitar:`,
+        `${APP_URL}/palpites`,
+      ].join('\n'), phones)
+      sent.push(`reminder:${match.team_a}x${match.team_b}:${missing.length}`)
+    }
+
+    // ── 4. RESULTADO (partidas FT não notificadas) ───────────────────────────
     const { data: finished } = await supabase
       .from('matches')
       .select('*')
