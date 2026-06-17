@@ -81,7 +81,7 @@ export default function PalpitesPage() {
       guess_a: scoreA,
       guess_b: scoreB,
       wildcard: existing?.wildcard ?? false,
-    })
+    }, { onConflict: 'user_id,match_id' })
     if (error) {
       alert("Erro ao salvar: " + error.message)
     } else {

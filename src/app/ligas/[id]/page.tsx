@@ -171,7 +171,7 @@ export default function LeaguePage({ params: paramsPromise }: { params: Promise<
       guess_a: scoreA,
       guess_b: scoreB,
       wildcard: existing?.wildcard ?? false,
-    })
+    }, { onConflict: 'user_id,match_id' })
     if (!error) {
       setPredictions(prev => ({ ...prev, [matchId]: { ...prev[matchId], match_id: matchId, score_a: scoreA, score_b: scoreB } }))
       fetchInitialData()
