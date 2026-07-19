@@ -78,24 +78,11 @@ serve(async (req) => {
       })
     }
 
-    // ── 0b. CAMPEÃO DA LIGA ────────────────────────────────────────────────
-    if (body.action === 'champion') {
-      const { audioUrls = [], testPhone } = body as { audioUrls?: string[]; testPhone?: string }
-
-      const dest = testPhone ?? WHATSAPP_GROUP_ID
-      const sendTo = (message: string) => fetch(
-        `https://api.w-api.app/v1/message/send-text?instanceId=${WAPI_INSTANCE_ID}`,
-        { method: 'POST', headers: { 'Authorization': `Bearer ${WAPI_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: dest, message }) }
-      )
-      const sendAudioTo = (url: string) => fetch(
-        `https://api.w-api.app/v1/message/send-audio?instanceId=${WAPI_INSTANCE_ID}`,
-        { method: 'POST', headers: { 'Authorization': `Bearer ${WAPI_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: dest, audio: url }) }
-      )
-
+    // ── helper: agregar ranking de league_members ─────────────────────────
+    async function getRanking() {
       const { data: members } = await supabase
         .from('league_members')
         .select('user_id, total_score, profiles(full_name)')
-
       const agg: Record<string, { name: string; score: number }> = {}
       for (const m of members ?? []) {
         const uid = m.user_id as string
@@ -103,57 +90,106 @@ serve(async (req) => {
         if (!agg[uid]) agg[uid] = { name, score: 0 }
         agg[uid].score += m.total_score
       }
+      return Object.values(agg).sort((a, b) => b.score - a.score)
+    }
 
-      const ranking = Object.values(agg).sort((a, b) => b.score - a.score)
+    // ── helper: enviar para dest (grupo ou testPhone) ─────────────────────
+    function makeSenders(dest: string) {
+      const headers = { 'Authorization': `Bearer ${WAPI_TOKEN}`, 'Content-Type': 'application/json' }
+      return {
+        sendTo: (message: string) => fetch(
+          `https://api.w-api.app/v1/message/send-text?instanceId=${WAPI_INSTANCE_ID}`,
+          { method: 'POST', headers, body: JSON.stringify({ phone: dest, message }) }
+        ),
+        sendAudioTo: (url: string) => fetch(
+          `https://api.w-api.app/v1/message/send-audio?instanceId=${WAPI_INSTANCE_ID}`,
+          { method: 'POST', headers, body: JSON.stringify({ phone: dest, audio: url }) }
+        ),
+      }
+    }
+
+    // ── 0b. MSG 1 — ANÚNCIO DO CAMPEÃO + ÁUDIOS ───────────────────────────
+    if (body.action === 'champion') {
+      const { audioUrls = [], testPhone } = body as { audioUrls?: string[]; testPhone?: string }
+      const { sendTo, sendAudioTo } = makeSenders(testPhone ?? WHATSAPP_GROUP_ID)
+
+      const ranking = await getRanking()
       if (!ranking.length) {
         return new Response(JSON.stringify({ error: 'no members' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
         })
       }
 
-      // 1. Mensagem do campeão
+      const top3 = ranking.slice(0, 3)
+      const animParams = new URLSearchParams({
+        campea:   top3[0]?.name ?? '',   pts1: String(top3[0]?.score ?? 0),
+        segundo:  top3[1]?.name ?? '',   pts2: String(top3[1]?.score ?? 0),
+        terceiro: top3[2]?.name ?? '',   pts3: String(top3[2]?.score ?? 0),
+      })
+
       await sendTo([
+        '🌍 *A Copa do Mundo 2026 chegou ao fim!*',
+        '',
         '🏆🎆🏆',
         '',
         'O campeão do Bolão dos Cria é...',
         '',
         `👑 *${ranking[0].name}* 👑`,
+        '',
+        '🎊 Veja a animação:',
+        `${APP_URL}/campea?${animParams}`,
       ].join('\n'))
 
-      // 2. Áudios de fogos
       const audioResults: string[] = []
       for (const url of audioUrls) {
         const r = await sendAudioTo(url)
         audioResults.push(`${r.status} ${await r.text()}`)
       }
 
-      // 3. Pódio
+      return new Response(JSON.stringify({ ok: true, sent: ['champion', 'audio'], audioResults }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+      })
+    }
+
+    // ── 0c. MSG 2 — PÓDIO FINAL (10 min depois) ───────────────────────────
+    if (body.action === 'podium') {
+      const { testPhone } = body as { testPhone?: string }
+      const { sendTo } = makeSenders(testPhone ?? WHATSAPP_GROUP_ID)
+
+      const ranking = await getRanking()
       const medals = ['🥇', '🥈', '🥉']
       const top3 = ranking.slice(0, 3)
       const podiumLines = top3.map((r, i) => `${medals[i]} *${r.name}* — ${r.score} pts`)
-
-      const animParams = new URLSearchParams({
-        campea:   top3[0]?.name ?? '',
-        pts1:     String(top3[0]?.score ?? 0),
-        segundo:  top3[1]?.name ?? '',
-        pts2:     String(top3[1]?.score ?? 0),
-        terceiro: top3[2]?.name ?? '',
-        pts3:     String(top3[2]?.score ?? 0),
-      })
 
       await sendTo([
         '🎇 *PÓDIO FINAL* 🎇',
         '',
         ...podiumLines,
-        '',
-        '🏆 Animação:',
-        `${APP_URL}/campea?${animParams}`,
       ].join('\n'))
 
-      return new Response(JSON.stringify({ ok: true, sent: ['champion', 'audio', 'podium'], audioResults }), {
+      return new Response(JSON.stringify({ ok: true, sent: ['podium'] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
       })
     }
+
+    // ── 0d. MSG 3 — LINK ESTATÍSTICAS (5 min depois do pódio) ─────────────
+    if (body.action === 'stats') {
+      const { testPhone } = body as { testPhone?: string }
+      const { sendTo } = makeSenders(testPhone ?? WHATSAPP_GROUP_ID)
+
+      await sendTo([
+        '📊 *ESTATÍSTICAS FINAIS*',
+        '',
+        'Confira o desempenho completo de todos os participantes:',
+        '',
+        `👉 ${APP_URL}/estatisticas`,
+      ].join('\n'))
+
+      return new Response(JSON.stringify({ ok: true, sent: ['stats-link'] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+      })
+    }
+
 
     // ── 1. PRÓXIMOS (30–90 min) ──────────────────────────────────────────────
     const { data: upcoming } = await supabase
