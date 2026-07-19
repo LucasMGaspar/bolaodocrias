@@ -26,6 +26,17 @@ async function sendWA(message: string, mentions?: string[]) {
   )
 }
 
+async function sendAudio(url: string) {
+  await fetch(
+    `https://api.w-api.app/v1/message/send-audio?instanceId=${WAPI_INSTANCE_ID}`,
+    {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${WAPI_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: WHATSAPP_GROUP_ID, audio: url }),
+    }
+  )
+}
+
 function toBRT(utcStr: string): string {
   const brt = new Date(new Date(utcStr).getTime() - 3 * 60 * 60 * 1000)
   return `${brt.getUTCHours().toString().padStart(2, '0')}:${brt.getUTCMinutes().toString().padStart(2, '0')}`
@@ -67,6 +78,83 @@ serve(async (req) => {
       })
     }
 
+    // ── 0b. CAMPEÃO DA LIGA ────────────────────────────────────────────────
+    if (body.action === 'champion') {
+      const { audioUrls = [], testPhone } = body as { audioUrls?: string[]; testPhone?: string }
+
+      const dest = testPhone ?? WHATSAPP_GROUP_ID
+      const sendTo = (message: string) => fetch(
+        `https://api.w-api.app/v1/message/send-text?instanceId=${WAPI_INSTANCE_ID}`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${WAPI_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: dest, message }) }
+      )
+      const sendAudioTo = (url: string) => fetch(
+        `https://api.w-api.app/v1/message/send-audio?instanceId=${WAPI_INSTANCE_ID}`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${WAPI_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: dest, audio: url }) }
+      )
+
+      const { data: members } = await supabase
+        .from('league_members')
+        .select('user_id, total_score, profiles(full_name)')
+
+      const agg: Record<string, { name: string; score: number }> = {}
+      for (const m of members ?? []) {
+        const uid = m.user_id as string
+        const name = (m.profiles as any)?.full_name ?? 'Anônimo'
+        if (!agg[uid]) agg[uid] = { name, score: 0 }
+        agg[uid].score += m.total_score
+      }
+
+      const ranking = Object.values(agg).sort((a, b) => b.score - a.score)
+      if (!ranking.length) {
+        return new Response(JSON.stringify({ error: 'no members' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400,
+        })
+      }
+
+      // 1. Mensagem do campeão
+      await sendTo([
+        '🏆🎆🏆',
+        '',
+        'O campeão do Bolão dos Cria é...',
+        '',
+        `👑 *${ranking[0].name}* 👑`,
+      ].join('\n'))
+
+      // 2. Áudios de fogos
+      const audioResults: string[] = []
+      for (const url of audioUrls) {
+        const r = await sendAudioTo(url)
+        audioResults.push(`${r.status} ${await r.text()}`)
+      }
+
+      // 3. Pódio
+      const medals = ['🥇', '🥈', '🥉']
+      const top3 = ranking.slice(0, 3)
+      const podiumLines = top3.map((r, i) => `${medals[i]} *${r.name}* — ${r.score} pts`)
+
+      const animParams = new URLSearchParams({
+        campea:   top3[0]?.name ?? '',
+        pts1:     String(top3[0]?.score ?? 0),
+        segundo:  top3[1]?.name ?? '',
+        pts2:     String(top3[1]?.score ?? 0),
+        terceiro: top3[2]?.name ?? '',
+        pts3:     String(top3[2]?.score ?? 0),
+      })
+
+      await sendTo([
+        '🎇 *PÓDIO FINAL* 🎇',
+        '',
+        ...podiumLines,
+        '',
+        '🏆 Animação:',
+        `${APP_URL}/campea?${animParams}`,
+      ].join('\n'))
+
+      return new Response(JSON.stringify({ ok: true, sent: ['champion', 'audio', 'podium'], audioResults }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+      })
+    }
+
     // ── 1. PRÓXIMOS (30–90 min) ──────────────────────────────────────────────
     const { data: upcoming } = await supabase
       .from('matches')
@@ -91,6 +179,8 @@ serve(async (req) => {
     }
 
     // ── 2. COMEÇANDO AGORA (5–15 min) ───────────────────────────────────────
+    const RANIERE_PHONE = '553391287475'
+
     const { data: starting } = await supabase
       .from('matches')
       .select('*')
@@ -100,13 +190,41 @@ serve(async (req) => {
       .order('match_time')
 
     for (const m of starting ?? []) {
-      await sendWA([
+      const { data: preds } = await supabase
+        .from('predictions')
+        .select('guess_a, guess_b, wildcard, profiles(full_name)')
+        .eq('match_id', m.id)
+
+      const predLines = (preds ?? [])
+        .map((p: any) => {
+          const wc = p.wildcard ? ' ⚡' : ''
+          return `   ${(p.profiles as any)?.full_name}${wc}: *${p.guess_a}×${p.guess_b}*`
+        })
+        .sort()
+
+      const noPred = (preds ?? []).length === 0
+
+      const msg = [
         '⏰ *APITO EM MINUTOS!*', '',
         `*${m.team_a}* x *${m.team_b}*`,
         `_${m.league_name}_`, '',
-        'Último momento para palpitar! ⚡',
+        '📊 *Palpites do bolão:*',
+        ...(noPred ? ['   _Nenhum palpite ainda_'] : predLines),
+        '',
         `${APP_URL}/palpites`,
-      ].join('\n'))
+      ].join('\n')
+
+      await sendWA(msg)
+
+      // Enviar também para Raniere no privado
+      await fetch(
+        `https://api.w-api.app/v1/message/send-text?instanceId=${WAPI_INSTANCE_ID}`,
+        {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${WAPI_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: RANIERE_PHONE, message: msg }),
+        }
+      )
     }
     if (starting?.length) sent.push(`starting:${starting.length}`)
 
@@ -163,6 +281,27 @@ serve(async (req) => {
       }
       sent.push(`reminder:${match.team_a}x${match.team_b}:${missing.length}`)
     }
+
+    // ── 3b. CONQUISTAS não notificadas ──────────────────────────────────────
+    const { data: newBadges } = await supabase
+      .from('user_badges')
+      .select('user_id, badge_id, badges(name, icon_url, description)')
+      .eq('notified', false)
+
+    for (const ub of newBadges ?? []) {
+      const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', ub.user_id).single()
+      const userName = prof?.full_name ?? 'Alguém'
+      const badge = ub.badges as any
+      await sendWA([
+        `${badge.icon_url} *NOVA CONQUISTA!*`, ``,
+        `*${userName}* desbloqueou *${badge.name}*`,
+        `_${badge.description}_`,
+      ].join('\n'))
+      await supabase.from('user_badges').update({ notified: true })
+        .eq('user_id', ub.user_id)
+        .eq('badge_id', ub.badge_id)
+    }
+    if (newBadges?.length) sent.push(`badges:${newBadges.length}`)
 
     // ── 4. RESULTADO (partidas FT não notificadas) ───────────────────────────
     const { data: finished } = await supabase
